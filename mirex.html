@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>Mirex ИИ облёты — Генерация видео</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        emerald: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            200: '#a7f3d0',
+                            300: '#6ee7b7',
+                            400: '#34d399',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            800: '#065f46',
+                            900: '#064e3b'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .loader-ring {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #e5e7eb;
+            border-top-color: #10b981;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .drop-zone { transition: all 0.3s ease; }
+        .drop-zone.drag-over {
+            border-color: #10b981 !important;
+            background: #ecfdf5 !important;
+            transform: scale(1.01);
+        }
+        .drop-zone:hover { border-color: #34d399; background: #fafafa; }
+        .text-gradient {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .history-card { transition: all 0.3s ease; }
+        .history-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        /* Стили для кнопки удаления */
+        .delete-btn {
+            opacity: 0;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            transform: scale(0.9);
+        }
+        .history-card:hover .delete-btn {
+            opacity: 1;
+            transform: scale(1);
+        }
+        /* Для мобильных устройств кнопка всегда видна */
+        @media (max-width: 640px) {
+            .delete-btn { opacity: 1; transform: scale(1); }
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+        .fade-in { animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+    
+    <div id="authSection" class="min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-md">
+            <div class="text-center mb-8">
+            <img src="logo.png" alt="Mirex Logo" class="w-48 mx-auto mb-4 object-contain">
+            <p class="text-gray-500 mt-2">Войдите в аккаунт</p>
+        </div>
+            
+            <div class="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+                <div class="flex mb-6 bg-gray-100 rounded-xl p-1">
+                    <button id="tabLogin" class="flex-1 py-2.5 px-4 rounded-lg font-medium transition-all bg-white text-gray-900 shadow-sm">
+                        Вход
+                    </button>
+                    <button id="tabRegister" class="flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-gray-500 hover:text-gray-700">
+                        Регистрация
+                    </button>
+                </div>
+                
+                <form id="loginForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+                        <input type="email" id="loginEmail" required placeholder="your@email.com"
+                            class="w-full px-4 py-3 border border-gray-200 rounded-xl transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Пароль</label>
+                        <div class="relative">
+                            <input type="password" id="loginPassword" required placeholder="••••••••"
+                                class="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl transition-all">
+                            <button type="button" class="toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" data-target="loginPassword">
+                                <svg class="w-5 h-5 eye-open" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                                <svg class="w-5 h-5 eye-closed hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" id="loginBtn"
+                        class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2">
+                        <span>Войти</span>
+                    </button>
+                </form>
+                
+                <form id="registerForm" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+                        <input type="email" id="registerEmail" required placeholder="your@email.com"
+                            class="w-full px-4 py-3 border border-gray-200 rounded-xl transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Пароль</label>
+                        <div class="relative">
+                            <input type="password" id="registerPassword" required minlength="6" placeholder="Минимум 6 символов"
+                                class="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl transition-all">
+                            <button type="button" class="toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" data-target="registerPassword">
+                                <svg class="w-5 h-5 eye-open" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                                <svg class="w-5 h-5 eye-closed hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Подтвердите пароль</label>
+                        <div class="relative">
+                            <input type="password" id="registerPasswordConfirm" required placeholder="••••••••"
+                                class="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl transition-all">
+                            <button type="button" class="toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" data-target="registerPasswordConfirm">
+                                <svg class="w-5 h-5 eye-open" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                                <svg class="w-5 h-5 eye-closed hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" id="registerBtn"
+                        class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2">
+                        <span>Зарегистрироваться</span>
+                    </button>
+                </form>
+                
+                <div id="authError" class="hidden mt-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm"></div>
+                <div id="authSuccess" class="hidden mt-4 p-3 bg-green-50 border border-green-200 text-green-600 rounded-xl text-sm"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appSection" class="hidden">
+        <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+            <div class="container mx-auto px-4 py-4 max-w-5xl">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <span class="font-bold text-xl text-gradient">Mirex ИИ облёты</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="hidden sm:flex items-center gap-2 text-sm text-gray-600">
+                            <div class="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+                                <svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                            <span id="userEmail" class="max-w-[150px] truncate"></span>
+                        </div>
+                        <button id="logoutBtn" class="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all text-sm font-medium">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                            </svg>
+                            <span class="hidden sm:inline">Выйти</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="container mx-auto px-4 py-8 max-w-5xl">
+            <div class="text-center mb-12">
+                <img src="logo.png" alt="Mirex Logo" class="w-48 mx-auto mb-4 object-contain">
+                <p class="text-gray-500 text-lg max-w-2xl mx-auto">
+                    Загрузите начальный и конечный кадры — искусственный интеллект создаст плавный переход между ними
+                </p>
+            </div>
+
+            <form id="generateForm" class="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-gray-100 mb-12">
+                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <div class="space-y-3">
+                        <label class="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                            <span class="w-6 h-6 bg-emerald-500 text-white rounded-lg flex items-center justify-center text-xs font-bold">1</span>
+                            Начальный кадр
+                        </label>
+                        <div id="dropZoneStart" class="drop-zone relative border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center cursor-pointer bg-gray-50 min-h-[220px] flex items-center justify-center">
+                            <input type="file" id="fileStart" accept="image/*" class="hidden">
+                            <div id="previewStart" class="preview-container hidden absolute inset-3">
+                                <img src="" alt="Preview" class="w-full h-full object-contain rounded-xl">
+                                <button type="button" class="remove-btn absolute -top-2 -right-2 w-7 h-7 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center shadow-lg">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div id="placeholderStart" class="placeholder-content">
+                                <div class="w-16 h-16 mx-auto mb-4 rounded-xl bg-gray-100 flex items-center justify-center">
+                                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                </div>
+                                <p class="text-gray-600 font-medium mb-1">Перетащите изображение</p>
+                                <p class="text-gray-400 text-sm">или нажмите для выбора</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <label class="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                            <span class="w-6 h-6 bg-emerald-400 text-white rounded-lg flex items-center justify-center text-xs font-bold">2</span>
+                            Конечный кадр
+                        </label>
+                        <div id="dropZoneEnd" class="drop-zone relative border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center cursor-pointer bg-gray-50 min-h-[220px] flex items-center justify-center">
+                            <input type="file" id="fileEnd" accept="image/*" class="hidden">
+                            <div id="previewEnd" class="preview-container hidden absolute inset-3">
+                                <img src="" alt="Preview" class="w-full h-full object-contain rounded-xl">
+                                <button type="button" class="remove-btn absolute -top-2 -right-2 w-7 h-7 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center shadow-lg">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div id="placeholderEnd" class="placeholder-content">
+                                <div class="w-16 h-16 mx-auto mb-4 rounded-xl bg-gray-100 flex items-center justify-center">
+                                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                </div>
+                                <p class="text-gray-600 font-medium mb-1">Перетащите изображение</p>
+                                <p class="text-gray-400 text-sm">или нажмите для выбора</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-4 px-8 rounded-xl transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-3">
+                    <svg id="btnIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    <span id="btnText">Сгенерировать видео</span>
+                </button>
+            </form>
+
+            <div id="loadingState" class="hidden mb-12">
+                <div class="bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-100">
+                    <div class="flex justify-center mb-6"><div class="loader-ring"></div></div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">ИИ создаёт магию...</h3>
+                    <p class="text-gray-500">Это может занять 2-3 минуты.</p>
+                </div>
+            </div>
+
+            <div id="resultSection" class="hidden mb-12 fade-in">
+                <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-green-200">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 id="resultTitle" class="text-xl font-bold text-gray-900">Видео готово!</h3>
+                            <p id="resultSubtitle" class="text-gray-500 text-sm">Ваше AI-видео успешно создано</p>
+                        </div>
+                    </div>
+                    <div id="videoContainer" class="aspect-video bg-gray-100 rounded-xl overflow-hidden mb-6">
+                        <video id="resultVideo" controls class="w-full h-full object-contain" playsinline></video>
+                    </div>
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <a id="downloadBtn" href="#" download class="flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            Скачать
+                        </a>
+                        <button id="newVideoBtn" type="button" class="flex items-center justify-center gap-2 bg-primary-50 hover:bg-primary-100 text-primary-600 font-medium py-3 px-6 rounded-xl transition-all">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            Создать ещё
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="errorSection" class="hidden mb-12 fade-in">
+                <div class="bg-white rounded-2xl shadow-xl p-6 border border-red-200">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-red-600">Ошибка</h3>
+                            <p id="errorText" class="text-gray-600 text-sm"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <section class="mb-12">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900">Моя история</h2>
+                    <div class="flex gap-2">
+                         <button id="clearHistoryBtn" class="flex items-center gap-2 px-3 py-1.5 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Удалить всю историю">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            <span class="hidden sm:inline">Очистить всё</span>
+                        </button>
+                        <button id="refreshHistory" class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            <span class="hidden sm:inline">Обновить</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="historyLoading" class="hidden py-12 text-center">
+                    <div class="loader-ring mx-auto mb-4"></div>
+                    <p class="text-gray-500">Загрузка...</p>
+                </div>
+                <div id="historyEmpty" class="hidden bg-white rounded-2xl border border-gray-100 p-12 text-center">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-1">История пуста</h3>
+                    <p class="text-gray-500">Создайте своё первое видео!</p>
+                </div>
+                <div id="historyGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // =====================================================
+        // CONFIGURATION
+        // =====================================================
+        const SUPABASE_URL = 'https://gqxxueddcodsxujsslje.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeHh1ZWRkY29kc3h1anNzbGplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzI1NjYsImV4cCI6MjA4NjMwODU2Nn0.39LK0iPD5iubhLcM--QnydkTWe9lOYtITWGRZnCIYZQ';
+        const WEBHOOK_URL = 'https://mirex.site/webhook/video-gen';
+
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // DOM Elements
+        const authSection = document.getElementById('authSection');
+        const appSection = document.getElementById('appSection');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const generateForm = document.getElementById('generateForm');
+        const authError = document.getElementById('authError');
+        const authSuccess = document.getElementById('authSuccess');
+        const tabLogin = document.getElementById('tabLogin');
+        const tabRegister = document.getElementById('tabRegister');
+
+        const files = { image_start: null, image_end: null };
+        let currentUser = null;
+
+        // =====================================================
+        // PASSWORD TOGGLE
+        // =====================================================
+        document.querySelectorAll('.toggle-password').forEach(button => {
+            button.addEventListener('click', function() {
+                const input = document.getElementById(this.dataset.target);
+                const eyeOpen = this.querySelector('.eye-open');
+                const eyeClosed = this.querySelector('.eye-closed');
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    eyeOpen.classList.add('hidden');
+                    eyeClosed.classList.remove('hidden');
+                } else {
+                    input.type = 'password';
+                    eyeOpen.classList.remove('hidden');
+                    eyeClosed.classList.add('hidden');
+                }
+            });
+        });
+
+        // =====================================================
+        // AUTH TABS
+        // =====================================================
+        function switchTab(tab) {
+            hideAuthMessages();
+            if (tab === 'login') {
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                tabLogin.classList.add('bg-white', 'text-gray-900', 'shadow-sm');
+                tabLogin.classList.remove('text-gray-500');
+                tabRegister.classList.remove('bg-white', 'text-gray-900', 'shadow-sm');
+                tabRegister.classList.add('text-gray-500');
+            } else {
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                tabRegister.classList.add('bg-white', 'text-gray-900', 'shadow-sm');
+                tabRegister.classList.remove('text-gray-500');
+                tabLogin.classList.remove('bg-white', 'text-gray-900', 'shadow-sm');
+                tabLogin.classList.add('text-gray-500');
+            }
+        }
+        tabLogin.addEventListener('click', () => switchTab('login'));
+        tabRegister.addEventListener('click', () => switchTab('register'));
+
+        // =====================================================
+        // AUTH HELPERS
+        // =====================================================
+        const errorTranslations = {
+            'Invalid login credentials': 'Неверный email или пароль',
+            'User already registered': 'Этот email уже зарегистрирован',
+            'Password should be at least 6 characters': 'Пароль должен быть минимум 6 символов',
+            'Unable to validate email address: invalid format': 'Неверный формат email',
+            'Signup requires a valid password': 'Введите пароль',
+            'Email rate limit exceeded': 'Слишком много попыток. Подождите немного.'
+        };
+
+        function showAuthError(message) {
+            authError.textContent = errorTranslations[message] || message;
+            authError.classList.remove('hidden');
+            authSuccess.classList.add('hidden');
+        }
+
+        function showAuthSuccess(message) {
+            authSuccess.textContent = message;
+            authSuccess.classList.remove('hidden');
+            authError.classList.add('hidden');
+        }
+
+        function hideAuthMessages() {
+            authError.classList.add('hidden');
+            authSuccess.classList.add('hidden');
+        }
+
+        function showAuth() {
+            authSection.classList.remove('hidden');
+            appSection.classList.add('hidden');
+        }
+
+        function showApp() {
+            console.count('showApp call count');
+            authSection.classList.add('hidden');
+            appSection.classList.remove('hidden');
+            document.getElementById('userEmail').textContent = currentUser.email;
+            loadHistory();
+        }
+
+        function setButtonLoading(btn, loading, text) {
+            btn.disabled = loading;
+            btn.classList.toggle('opacity-75', loading);
+            btn.querySelector('span').textContent = loading ? 'Загрузка...' : text;
+        }
+
+        // =====================================================
+        // LOGIN
+        // =====================================================
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideAuthMessages();
+            
+            const btn = document.getElementById('loginBtn');
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!email || !password) {
+                showAuthError('Заполните все поля');
+                return;
+            }
+            
+            setButtonLoading(btn, true, 'Войти');
+            
+            try {
+                const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                if (error) showAuthError(error.message);
+            } catch (err) {
+                showAuthError('Ошибка подключения');
+            } finally {
+                setButtonLoading(btn, false, 'Войти');
+            }
+        });
+
+        // =====================================================
+        // REGISTER
+        // =====================================================
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideAuthMessages();
+            
+            const btn = document.getElementById('registerBtn');
+            const email = document.getElementById('registerEmail').value.trim();
+            const password = document.getElementById('registerPassword').value;
+            const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
+            
+            if (!email || !password) {
+                showAuthError('Заполните все поля');
+                return;
+            }
+            if (password !== passwordConfirm) {
+                showAuthError('Пароли не совпадают');
+                return;
+            }
+            if (password.length < 6) {
+                showAuthError('Пароль должен быть минимум 6 символов');
+                return;
+            }
+            
+            setButtonLoading(btn, true, 'Зарегистрироваться');
+            
+            try {
+                const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                if (error) {
+                    showAuthError(error.message);
+                } else if (data.session) {
+                    showAuthSuccess('Регистрация успешна!');
+                }
+            } catch (err) {
+                showAuthError('Ошибка подключения');
+            } finally {
+                setButtonLoading(btn, false, 'Зарегистрироваться');
+            }
+        });
+
+        // =====================================================
+        // LOGOUT
+        // =====================================================
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            await supabaseClient.auth.signOut();
+        });
+
+        // =====================================================
+        // AUTH STATE LISTENER
+        // =====================================================
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            console.count('onAuthStateChange listener call count');
+            if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+                    currentUser = session?.user || null;
+                    showApp();
+                } else if (event === 'SIGNED_OUT') {
+                    currentUser = null;
+                    showAuth();
+                }
+        });
+
+        // =====================================================
+        // DROP ZONES
+        // =====================================================
+        function initDropZone(zoneId, inputId, previewId, placeholderId, fileKey) {
+            const zone = document.getElementById(zoneId);
+            const input = document.getElementById(inputId);
+            const preview = document.getElementById(previewId);
+            const placeholder = document.getElementById(placeholderId);
+            const removeBtn = preview.querySelector('.remove-btn');
+            const img = preview.querySelector('img');
+
+            zone.addEventListener('click', (e) => {
+                if (!e.target.closest('.remove-btn')) input.click();
+            });
+
+            input.addEventListener('change', (e) => {
+                if (e.target.files[0]) handleFile(e.target.files[0], fileKey, preview, placeholder, img);
+            });
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
+                zone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); });
+            });
+            ['dragenter', 'dragover'].forEach(evt => {
+                zone.addEventListener(evt, () => zone.classList.add('drag-over'));
+            });
+            ['dragleave', 'drop'].forEach(evt => {
+                zone.addEventListener(evt, () => zone.classList.remove('drag-over'));
+            });
+
+            zone.addEventListener('drop', (e) => {
+                const file = e.dataTransfer.files[0];
+                if (file?.type.startsWith('image/')) {
+                    handleFile(file, fileKey, preview, placeholder, img);
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    input.files = dt.files;
+                }
+            });
+
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                files[fileKey] = null;
+                input.value = '';
+                preview.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+                img.src = '';
+            });
+        }
+
+        function handleFile(file, key, preview, placeholder, img) {
+            if (!file?.type.startsWith('image/')) return;
+            files[key] = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                img.src = e.target.result;
+                preview.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        initDropZone('dropZoneStart', 'fileStart', 'previewStart', 'placeholderStart', 'image_start');
+        initDropZone('dropZoneEnd', 'fileEnd', 'previewEnd', 'placeholderEnd', 'image_end');
+
+        // =====================================================
+        // GENERATE
+        // =====================================================
+        generateForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!files.image_start || !files.image_end) {
+                showFormError('Загрузите оба изображения');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image_start', files.image_start);
+            formData.append('image_end', files.image_end);
+            formData.append('user_id', currentUser.id);
+            formData.append('email', currentUser.email);
+
+            setLoadingState(true);
+            hideResults();
+
+            try {
+                const response = await fetch(WEBHOOK_URL, { method: 'POST', body: formData });
+                if (!response.ok) throw new Error(`Ошибка: ${response.status}`);
+
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('video')) {
+                    showVideoResult(URL.createObjectURL(await response.blob()));
+                } else if (contentType.includes('json')) {
+                    const data = await response.json();
+                    const url = data.video_url || data.videoUrl || data.url || data.video;
+                    url?.startsWith('http') ? showVideoResult(url) : showSuccessMessage('Запрос отправлен!');
+                } else {
+                    const text = await response.text();
+                    text.trim().startsWith('http') ? showVideoResult(text.trim()) : showSuccessMessage('Готово!');
+                }
+                setTimeout(loadHistory, 2000);
+            } catch (err) {
+                showFormError(err.message);
+            } finally {
+                setLoadingState(false);
+            }
+        });
+
+        function setLoadingState(loading) {
+            const btn = document.getElementById('submitBtn');
+            const text = document.getElementById('btnText');
+            const icon = document.getElementById('btnIcon');
+            btn.disabled = loading;
+            btn.classList.toggle('opacity-75', loading);
+            document.getElementById('loadingState').classList.toggle('hidden', !loading);
+            text.textContent = loading ? 'Генерация...' : 'Сгенерировать видео';
+            icon.innerHTML = loading 
+                ? '<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>'
+                : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>';
+        }
+
+        function hideResults() {
+            document.getElementById('resultSection').classList.add('hidden');
+            document.getElementById('errorSection').classList.add('hidden');
+        }
+
+        function showVideoResult(url) {
+            hideResults();
+            document.getElementById('resultTitle').textContent = 'Видео готово!';
+            document.getElementById('resultSubtitle').textContent = 'Успешно создано';
+            document.getElementById('videoContainer').classList.remove('hidden');
+            document.getElementById('resultVideo').src = url;
+            document.getElementById('downloadBtn').href = url;
+            document.getElementById('resultSection').classList.remove('hidden');
+        }
+
+        function showSuccessMessage(msg) {
+            hideResults();
+            document.getElementById('resultTitle').textContent = 'Успешно!';
+            document.getElementById('resultSubtitle').textContent = msg;
+            document.getElementById('videoContainer').classList.add('hidden');
+            document.getElementById('resultSection').classList.remove('hidden');
+        }
+
+        function showFormError(msg) {
+            hideResults();
+            document.getElementById('errorText').textContent = msg;
+            document.getElementById('errorSection').classList.remove('hidden');
+        }
+
+        document.getElementById('newVideoBtn').addEventListener('click', () => {
+            hideResults();
+            document.getElementById('videoContainer').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // =====================================================
+        // HISTORY
+        // =====================================================
+        let displayedHistoryItems = new Set(); // To track displayed items
+
+        async function loadHistory() {
+            console.count('loadHistory call count');
+            console.log('loadHistory called');
+            const loading = document.getElementById('historyLoading');
+            const empty = document.getElementById('historyEmpty');
+            const grid = document.getElementById('historyGrid');
+            const clearBtn = document.getElementById('clearHistoryBtn');
+            
+            loading.classList.remove('hidden');
+            empty.classList.add('hidden');
+            grid.innerHTML = ''; // Clear grid on each load
+            displayedHistoryItems.clear(); // Clear the set as well
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .from('generations')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                console.log('Data from Supabase:', data);
+                console.log('Number of items from Supabase:', data?.length);
+                
+                loading.classList.add('hidden');
+                if (error || !data?.length) {
+                    empty.classList.remove('hidden');
+                    clearBtn.classList.add('hidden');
+                    return;
+                }
+                
+                clearBtn.classList.remove('hidden');
+                data.forEach(item => {
+                    if (!displayedHistoryItems.has(item.id)) {
+                        console.log('Creating card for item:', item.id);
+                        grid.appendChild(createCard(item));
+                        displayedHistoryItems.add(item.id);
+                    } else {
+                        console.log('Item already displayed, skipping:', item.id);
+                    }
+                });
+            } catch (e) {
+                loading.classList.add('hidden');
+                empty.classList.remove('hidden');
+                clearBtn.classList.add('hidden');
+            }
+        }
+
+        async function deleteHistoryItem(id) {
+            if (!confirm('Вы действительно хотите удалить это видео?')) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('generations')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+                loadHistory(); // Перезагружаем список
+            } catch (error) {
+                alert('Ошибка при удалении: ' + error.message);
+            }
+        }
+
+        async function clearAllHistory() {
+            if (!confirm('Вы уверены, что хотите удалить ВСЮ историю генераций? Это действие нельзя отменить.')) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('generations')
+                    .delete()
+                    .eq('user_id', currentUser.id); // Удаляем только свои записи
+
+                if (error) throw error;
+                loadHistory();
+            } catch (error) {
+                alert('Ошибка при очистке истории: ' + error.message);
+            }
+        }
+
+        function createCard(item) {
+            const card = document.createElement('div');
+            card.className = 'history-card bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm relative group';
+            const date = new Date(item.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            const processing = !item.video_url;
+
+            const formatGoogleDriveUrl = (url) => {
+                if (url && url.includes('drive.google.com') && url.includes('export=download')) {
+                    return url.replace('export=download', 'export=view');
+                }
+                return url;
+            };
+
+            const imageUrlStart = formatGoogleDriveUrl(item.image_start);
+            const imageUrlEnd = formatGoogleDriveUrl(item.image_end);
+            
+            card.innerHTML = `
+                <div class="flex justify-center items-center gap-2 p-2 bg-gray-50 rounded-t-xl">
+                    ${imageUrlStart ? `<img src="${imageUrlStart}" class="w-16 h-16 object-cover rounded-lg" alt="Start Image" referrerpolicy="no-referrer">` : ''}
+                    ${imageUrlEnd ? `<img src="${imageUrlEnd}" class="w-16 h-16 object-cover rounded-lg" alt="End Image" referrerpolicy="no-referrer">` : ''}
+                </div>
+                <div class="aspect-video bg-gray-100 relative">
+                    ${item.video_url 
+                        ? `<video src="${item.video_url}" class="w-full h-full object-cover" muted loop onmouseover="this.play()" onmouseout="this.pause();this.currentTime=0;"></video>`
+                        : `<div class="w-full h-full flex items-center justify-center"><div class="loader-ring" style="width:30px;height:30px;border-width:2px;"></div></div>`
+                    }
+                    <button class="delete-btn absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow-md transition-all z-10" title="Удалить">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="p-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-500">${date}</span>
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${processing ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}">${processing ? 'Обработка...' : 'Готово'}</span>
+                    </div>
+                    ${item.video_url ? `<a href="${item.video_url}" download class="mt-3 w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg text-sm">Скачать</a>` : ''}
+                </div>            `;
+
+            // Навешиваем событие удаления на кнопку
+            const deleteBtn = card.querySelector('.delete-btn');
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Чтобы не срабатывали другие клики если они будут
+                deleteHistoryItem(item.id);
+            });
+
+            return card;
+        }
+
+        document.getElementById('refreshHistory').addEventListener('click', loadHistory);
+        document.getElementById('clearHistoryBtn').addEventListener('click', clearAllHistory);
+
+        // =====================================================
+        // INIT
+        // =====================================================
+        (async function init() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.user) {
+                currentUser = session.user;
+                // showApp(); // Удалено
+            } else {
+                // showAuth(); // Удалено
+            }
+        })();
+    </script>
+</body>
+</html>
