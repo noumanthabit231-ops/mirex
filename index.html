@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="no-referrer">
     <title>Mirex ИИ облёты — Генерация видео</title>
+    <script>
+        (function(){
+            var ow = console.warn;
+            console.warn = function(){
+                if (arguments[0] && typeof arguments[0] === 'string' && arguments[0].indexOf('cdn.tailwindcss.com should not be used in production') !== -1) return;
+                return ow.apply(console, arguments);
+            };
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script>
@@ -89,7 +98,7 @@
     <div id="authSection" class="min-h-screen flex items-center justify-center p-4">
         <div class="w-full max-w-md">
             <div class="text-center mb-8">
-            <img src="logo.png" alt="Mirex Logo" class="w-48 mx-auto mb-4 object-contain">
+            <img id="authLogo" src="logo.png" alt="Mirex Logo" class="w-48 mx-auto mb-4 object-contain">
             <p class="text-gray-500 mt-2">Войдите в аккаунт</p>
         </div>
             
@@ -98,8 +107,8 @@
                     <button id="tabLogin" class="flex-1 py-2.5 px-4 rounded-lg font-medium transition-all bg-white text-gray-900 shadow-sm">
                         Вход
                     </button>
-                    <button id="tabRegister" class="flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-gray-500 hover:text-gray-700">
-                        Регистрация
+                    <button id="tabAdmin" class="hidden flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-gray-500 hover:text-gray-700">
+                        Админ
                     </button>
                 </div>
                 
@@ -131,50 +140,33 @@
                     </button>
                 </form>
                 
-                <form id="registerForm" class="space-y-4 hidden">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-                        <input type="email" id="registerEmail" required placeholder="your@email.com"
-                            class="w-full px-4 py-3 border border-gray-200 rounded-xl transition-all">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Пароль</label>
-                        <div class="relative">
-                            <input type="password" id="registerPassword" required minlength="6" placeholder="Минимум 6 символов"
-                                class="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl transition-all">
-                            <button type="button" class="toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" data-target="registerPassword">
-                                <svg class="w-5 h-5 eye-open" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                </svg>
-                                <svg class="w-5 h-5 eye-closed hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
-                                </svg>
+                <form id="adminForm" class="space-y-4 hidden">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Управление дизайнерами</h3>
+                    
+                    <div class="bg-gray-50 p-4 rounded-xl mb-4">
+                        <h4 class="text-sm font-medium text-gray-700 mb-3">Добавить нового</h4>
+                        <div class="space-y-3">
+                            <input type="email" id="adminEmail" placeholder="designer@email.com"
+                                class="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm">
+                            <input type="text" id="adminPassword" placeholder="Пароль"
+                                class="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm">
+                            <button type="submit" id="adminBtn"
+                                class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 text-sm">
+                                <span>Создать дизайнера</span>
                             </button>
                         </div>
+                        <div id="adminMessage" class="mt-2 text-xs text-center"></div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1.5">Подтвердите пароль</label>
-                        <div class="relative">
-                            <input type="password" id="registerPasswordConfirm" required placeholder="••••••••"
-                                class="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl transition-all">
-                            <button type="button" class="toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" data-target="registerPasswordConfirm">
-                                <svg class="w-5 h-5 eye-open" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                </svg>
-                                <svg class="w-5 h-5 eye-closed hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
-                                </svg>
-                            </button>
+
+                    <div class="border-t border-gray-100 pt-4">
+                        <h4 class="text-sm font-medium text-gray-700 mb-3">Список дизайнеров</h4>
+                        <div id="designersList" class="space-y-2 max-h-60 overflow-y-auto">
+                            <!-- Designers will be loaded here -->
+                            <div class="text-center text-gray-400 text-sm py-2">Загрузка...</div>
                         </div>
                     </div>
-                    <button type="submit" id="registerBtn"
-                        class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2">
-                        <span>Зарегистрироваться</span>
-                    </button>
                 </form>
-                
+
                 <div id="authError" class="hidden mt-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm"></div>
                 <div id="authSuccess" class="hidden mt-4 p-3 bg-green-50 border border-green-200 text-green-600 rounded-xl text-sm"></div>
             </div>
@@ -210,7 +202,7 @@
 
         <main class="container mx-auto px-4 py-8 max-w-5xl">
             <div class="text-center mb-12">
-                <img src="logo.png" alt="Mirex Logo" class="w-48 mx-auto mb-4 object-contain">
+                <img id="appLogo" src="logo.png" alt="Mirex Logo" class="w-48 mx-auto mb-4 object-contain">
                 <p class="text-gray-500 text-lg max-w-2xl mx-auto">
                     Загрузите начальный и конечный кадры — искусственный интеллект создаст плавный переход между ними
                 </p>
@@ -288,33 +280,16 @@
             </div>
 
             <div id="resultSection" class="hidden mb-12 fade-in">
-                <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-green-200">
-                    <div class="flex items-center gap-3 mb-6">
-                        <div class="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
-                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 id="resultTitle" class="text-xl font-bold text-gray-900">Видео готово!</h3>
-                            <p id="resultSubtitle" class="text-gray-500 text-sm">Ваше AI-видео успешно создано</p>
-                        </div>
-                    </div>
-                    <div id="videoContainer" class="aspect-video bg-gray-100 rounded-xl overflow-hidden mb-6">
-                        <video id="resultVideo" controls class="w-full h-full object-contain" playsinline></video>
-                    </div>
-                    <div class="grid sm:grid-cols-2 gap-4">
-                        <a id="downloadBtn" href="#" download class="flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                            </svg>
-                            Скачать
+
+                <div id="latestVideoContainer" class="hidden bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-gray-100 mb-8">
+                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Ваше новое видео</h3>
+                    <video id="latestVideoPlayer" class="w-full rounded-xl mb-4" controls autoplay></video>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <a id="latestVideoDownloadBtn" href="#" download="mirex_video.mp4" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 px-4 rounded-xl text-center transition-all">
+                            Скачать видео
                         </a>
-                        <button id="newVideoBtn" type="button" class="flex items-center justify-center gap-2 bg-primary-50 hover:bg-primary-100 text-primary-600 font-medium py-3 px-6 rounded-xl transition-all">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                            </svg>
-                            Создать ещё
+                        <button id="latestVideoNewBtn" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-xl transition-all">
+                            Сделать новое видео
                         </button>
                     </div>
                 </div>
@@ -378,67 +353,116 @@
         // =====================================================
         const SUPABASE_URL = 'https://gqxxueddcodsxujsslje.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeHh1ZWRkY29kc3h1anNzbGplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzI1NjYsImV4cCI6MjA4NjMwODU2Nn0.39LK0iPD5iubhLcM--QnydkTWe9lOYtITWGRZnCIYZQ';
-        const WEBHOOK_URL = 'https://mirex.site/webhook/video-gen';
+        const WEBHOOK_URL = 'https://mirex.site/webhook/v2';
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        let currentDownloadBlobUrl = null;
+        let displayedHistoryItems = new Set();
 
-        // DOM Elements
-        const authSection = document.getElementById('authSection');
-        const appSection = document.getElementById('appSection');
-        const loginForm = document.getElementById('loginForm');
-        const registerForm = document.getElementById('registerForm');
-        const generateForm = document.getElementById('generateForm');
-        const authError = document.getElementById('authError');
-        const authSuccess = document.getElementById('authSuccess');
-        const tabLogin = document.getElementById('tabLogin');
-        const tabRegister = document.getElementById('tabRegister');
-
+        // DOM Elements (will be initialized in DOMContentLoaded)
         const files = { image_start: null, image_end: null };
         let currentUser = null;
+        let logoClicks = 0;
+        let clickTimeout;
+
+        // Helper for safe event listeners
+        function safeAddEventListener(id, event, handler) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener(event, handler);
+            } else {
+                console.warn(`Element with id '${id}' not found for event '${event}'`);
+            }
+        }
 
         // =====================================================
-        // PASSWORD TOGGLE
+        // ADMIN EASTER EGG
         // =====================================================
-        document.querySelectorAll('.toggle-password').forEach(button => {
-            button.addEventListener('click', function() {
-                const input = document.getElementById(this.dataset.target);
-                const eyeOpen = this.querySelector('.eye-open');
-                const eyeClosed = this.querySelector('.eye-closed');
-                if (input.type === 'password') {
-                    input.type = 'text';
-                    eyeOpen.classList.add('hidden');
-                    eyeClosed.classList.remove('hidden');
-                } else {
-                    input.type = 'password';
-                    eyeOpen.classList.remove('hidden');
-                    eyeClosed.classList.add('hidden');
-                }
-            });
-        });
+        function handleLogoClick() {
+            logoClicks++;
+            clearTimeout(clickTimeout);
+            clickTimeout = setTimeout(() => { logoClicks = 0; }, 1000);
+
+            if (logoClicks === 8) {
+                logoClicks = 0;
+                
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] fade-in';
+                modal.innerHTML = `
+                    <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-xs transform scale-100 transition-all">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4 text-center">Доступ к админ-панели</h3>
+                        <div class="space-y-4">
+                            <input type="password" id="adminPinInput" placeholder="Введите PIN-код" autofocus
+                                class="w-full px-4 py-3 text-center text-xl tracking-widest border border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all" maxlength="6">
+                            <div class="grid grid-cols-2 gap-3">
+                                <button id="cancelPinBtn" class="w-full py-2.5 px-4 rounded-xl font-medium text-gray-500 hover:bg-gray-100 transition-all">
+                                    Отмена
+                                </button>
+                                <button id="submitPinBtn" class="w-full py-2.5 px-4 rounded-xl font-medium bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 transition-all">
+                                    Войти
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+
+                const input = document.getElementById('adminPinInput');
+                const submitBtn = document.getElementById('submitPinBtn');
+                const cancelBtn = document.getElementById('cancelPinBtn');
+                const tabAdmin = document.getElementById('tabAdmin');
+
+                const checkPin = () => {
+                    if (input.value === '101010') {
+                        if(tabAdmin) tabAdmin.classList.remove('hidden');
+                        switchTab('admin');
+                        loadDesigners();
+                        modal.remove();
+                    } else {
+                        input.classList.add('border-red-500', 'text-red-500');
+                        setTimeout(() => input.classList.remove('border-red-500', 'text-red-500'), 500);
+                        input.value = '';
+                        input.focus();
+                    }
+                };
+
+                submitBtn.addEventListener('click', checkPin);
+                cancelBtn.addEventListener('click', () => modal.remove());
+                input.addEventListener('keyup', (e) => {
+                    if (e.key === 'Enter') checkPin();
+                });
+            }
+        }
 
         // =====================================================
         // AUTH TABS
         // =====================================================
         function switchTab(tab) {
-            hideAuthMessages();
+            const loginForm = document.getElementById('loginForm');
+            const adminForm = document.getElementById('adminForm');
+            const tabLogin = document.getElementById('tabLogin');
+            const tabAdmin = document.getElementById('tabAdmin');
+            const authError = document.getElementById('authError');
+            const authSuccess = document.getElementById('authSuccess');
+
+            if(authError) authError.classList.add('hidden');
+            if(authSuccess) authSuccess.classList.add('hidden');
+            
+            if(loginForm) loginForm.classList.add('hidden');
+            if(adminForm) adminForm.classList.add('hidden');
+            
+            if(tabLogin) tabLogin.className = 'flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-gray-500 hover:text-gray-700';
+            if(tabAdmin) tabAdmin.className = 'flex-1 py-2.5 px-4 rounded-lg font-medium transition-all text-gray-500 hover:text-gray-700';
+
             if (tab === 'login') {
-                loginForm.classList.remove('hidden');
-                registerForm.classList.add('hidden');
-                tabLogin.classList.add('bg-white', 'text-gray-900', 'shadow-sm');
-                tabLogin.classList.remove('text-gray-500');
-                tabRegister.classList.remove('bg-white', 'text-gray-900', 'shadow-sm');
-                tabRegister.classList.add('text-gray-500');
-            } else {
-                loginForm.classList.add('hidden');
-                registerForm.classList.remove('hidden');
-                tabRegister.classList.add('bg-white', 'text-gray-900', 'shadow-sm');
-                tabRegister.classList.remove('text-gray-500');
-                tabLogin.classList.remove('bg-white', 'text-gray-900', 'shadow-sm');
-                tabLogin.classList.add('text-gray-500');
+                if(loginForm) loginForm.classList.remove('hidden');
+                if(tabLogin) tabLogin.className = 'flex-1 py-2.5 px-4 rounded-lg font-medium transition-all bg-white text-gray-900 shadow-sm';
+            } else if (tab === 'admin') {
+                if(adminForm) adminForm.classList.remove('hidden');
+                if(tabAdmin) tabAdmin.classList.remove('hidden');
+                if(tabAdmin) tabAdmin.className = 'flex-1 py-2.5 px-4 rounded-lg font-medium transition-all bg-white text-gray-900 shadow-sm';
             }
         }
-        tabLogin.addEventListener('click', () => switchTab('login'));
-        tabRegister.addEventListener('click', () => switchTab('register'));
 
         // =====================================================
         // AUTH HELPERS
@@ -453,130 +477,119 @@
         };
 
         function showAuthError(message) {
-            authError.textContent = errorTranslations[message] || message;
-            authError.classList.remove('hidden');
-            authSuccess.classList.add('hidden');
+            const authError = document.getElementById('authError');
+            const authSuccess = document.getElementById('authSuccess');
+            if(authError) {
+                authError.textContent = errorTranslations[message] || message;
+                authError.classList.remove('hidden');
+            }
+            if(authSuccess) authSuccess.classList.add('hidden');
         }
 
         function showAuthSuccess(message) {
-            authSuccess.textContent = message;
-            authSuccess.classList.remove('hidden');
-            authError.classList.add('hidden');
+            const authSuccess = document.getElementById('authSuccess');
+            const authError = document.getElementById('authError');
+            if(authSuccess) {
+                authSuccess.textContent = message;
+                authSuccess.classList.remove('hidden');
+            }
+            if(authError) authError.classList.add('hidden');
         }
 
         function hideAuthMessages() {
-            authError.classList.add('hidden');
-            authSuccess.classList.add('hidden');
+            const authError = document.getElementById('authError');
+            const authSuccess = document.getElementById('authSuccess');
+            if(authError) authError.classList.add('hidden');
+            if(authSuccess) authSuccess.classList.add('hidden');
         }
 
         function showAuth() {
-            authSection.classList.remove('hidden');
-            appSection.classList.add('hidden');
+            const authSection = document.getElementById('authSection');
+            const appSection = document.getElementById('appSection');
+            if(authSection) authSection.classList.remove('hidden');
+            if(appSection) appSection.classList.add('hidden');
         }
 
         function showApp() {
             console.count('showApp call count');
-            authSection.classList.add('hidden');
-            appSection.classList.remove('hidden');
-            document.getElementById('userEmail').textContent = currentUser.email;
+            const authSection = document.getElementById('authSection');
+            const appSection = document.getElementById('appSection');
+            const userEmailSpan = document.getElementById('userEmail');
+            
+            if(authSection) authSection.classList.add('hidden');
+            if(appSection) appSection.classList.remove('hidden');
+            if(userEmailSpan) userEmailSpan.textContent = (currentUser && currentUser.email) ? currentUser.email : '';
             loadHistory();
         }
 
         function setButtonLoading(btn, loading, text) {
+            if(!btn) return;
             btn.disabled = loading;
             btn.classList.toggle('opacity-75', loading);
-            btn.querySelector('span').textContent = loading ? 'Загрузка...' : text;
+            const span = btn.querySelector('span');
+            if(span) span.textContent = loading ? 'Загрузка...' : text;
         }
 
         // =====================================================
-        // LOGIN
+        // DESIGNER MANAGEMENT
         // =====================================================
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            hideAuthMessages();
-            
-            const btn = document.getElementById('loginBtn');
-            const email = document.getElementById('loginEmail').value.trim();
-            const password = document.getElementById('loginPassword').value;
-            
-            if (!email || !password) {
-                showAuthError('Заполните все поля');
-                return;
-            }
-            
-            setButtonLoading(btn, true, 'Войти');
+        async function loadDesigners() {
+            const list = document.getElementById('designersList');
+            if(!list) return;
+            list.innerHTML = '<div class="text-center text-gray-400 text-sm py-2">Загрузка...</div>';
             
             try {
-                const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                if (error) showAuthError(error.message);
-            } catch (err) {
-                showAuthError('Ошибка подключения');
-            } finally {
-                setButtonLoading(btn, false, 'Войти');
-            }
-        });
+                const { data, error } = await supabaseClient
+                    .from('designers')
+                    .select('*')
+                    .order('created_at', { ascending: false });
 
-        // =====================================================
-        // REGISTER
-        // =====================================================
-        registerForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            hideAuthMessages();
-            
-            const btn = document.getElementById('registerBtn');
-            const email = document.getElementById('registerEmail').value.trim();
-            const password = document.getElementById('registerPassword').value;
-            const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
-            
-            if (!email || !password) {
-                showAuthError('Заполните все поля');
-                return;
-            }
-            if (password !== passwordConfirm) {
-                showAuthError('Пароли не совпадают');
-                return;
-            }
-            if (password.length < 6) {
-                showAuthError('Пароль должен быть минимум 6 символов');
-                return;
-            }
-            
-            setButtonLoading(btn, true, 'Зарегистрироваться');
-            
-            try {
-                const { data, error } = await supabaseClient.auth.signUp({ email, password });
-                if (error) {
-                    showAuthError(error.message);
-                } else if (data.session) {
-                    showAuthSuccess('Регистрация успешна!');
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    list.innerHTML = '<div class="text-center text-gray-400 text-sm py-2">Нет дизайнеров</div>';
+                    return;
                 }
+
+                list.innerHTML = '';
+                data.forEach(designer => {
+                    const item = document.createElement('div');
+                    item.className = 'flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm';
+                    item.innerHTML = `
+                        <div class="truncate mr-2 text-sm text-gray-700 font-medium" title="${designer.email}">
+                            ${designer.email}
+                        </div>
+                        <button class="delete-designer-btn text-red-500 hover:text-red-700 p-1 rounded-md hover:bg-red-50 transition-colors" data-id="${designer.id}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    `;
+                    list.appendChild(item);
+                });
+
+                document.querySelectorAll('.delete-designer-btn').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const id = e.currentTarget.dataset.id;
+                        if(confirm('Удалить этого дизайнера?')) {
+                            try {
+                                const { error } = await supabaseClient
+                                    .from('designers')
+                                    .delete()
+                                    .eq('id', id);
+                                if(error) throw error;
+                                loadDesigners();
+                            } catch(err) {
+                                alert('Ошибка удаления: ' + err.message);
+                            }
+                        }
+                    });
+                });
+
             } catch (err) {
-                showAuthError('Ошибка подключения');
-            } finally {
-                setButtonLoading(btn, false, 'Зарегистрироваться');
+                list.innerHTML = `<div class="text-center text-red-500 text-sm py-2">Ошибка: ${err.message}</div>`;
             }
-        });
-
-        // =====================================================
-        // LOGOUT
-        // =====================================================
-        document.getElementById('logoutBtn').addEventListener('click', async () => {
-            await supabaseClient.auth.signOut();
-        });
-
-        // =====================================================
-        // AUTH STATE LISTENER
-        // =====================================================
-        supabaseClient.auth.onAuthStateChange((event, session) => {
-            console.count('onAuthStateChange listener call count');
-            if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-                    currentUser = session?.user || null;
-                    showApp();
-                } else if (event === 'SIGNED_OUT') {
-                    currentUser = null;
-                    showAuth();
-                }
-        });
+        }
 
         // =====================================================
         // DROP ZONES
@@ -586,6 +599,9 @@
             const input = document.getElementById(inputId);
             const preview = document.getElementById(previewId);
             const placeholder = document.getElementById(placeholderId);
+            
+            if(!zone || !input || !preview || !placeholder) return;
+
             const removeBtn = preview.querySelector('.remove-btn');
             const img = preview.querySelector('img');
 
@@ -617,14 +633,16 @@
                 }
             });
 
-            removeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                files[fileKey] = null;
-                input.value = '';
-                preview.classList.add('hidden');
-                placeholder.classList.remove('hidden');
-                img.src = '';
-            });
+            if(removeBtn) {
+                removeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    files[fileKey] = null;
+                    input.value = '';
+                    preview.classList.add('hidden');
+                    placeholder.classList.remove('hidden');
+                    if(img) img.src = '';
+                });
+            }
         }
 
         function handleFile(file, key, preview, placeholder, img) {
@@ -632,182 +650,248 @@
             files[key] = file;
             const reader = new FileReader();
             reader.onload = (e) => {
-                img.src = e.target.result;
+                if(img) img.src = e.target.result;
                 preview.classList.remove('hidden');
                 placeholder.classList.add('hidden');
             };
             reader.readAsDataURL(file);
         }
 
-        initDropZone('dropZoneStart', 'fileStart', 'previewStart', 'placeholderStart', 'image_start');
-        initDropZone('dropZoneEnd', 'fileEnd', 'previewEnd', 'placeholderEnd', 'image_end');
-
         // =====================================================
-        // GENERATE
+        // GENERATE LOGIC
         // =====================================================
-        generateForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            if (!files.image_start || !files.image_end) {
-                showFormError('Загрузите оба изображения');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('image_start', files.image_start);
-            formData.append('image_end', files.image_end);
-            formData.append('user_id', currentUser.id);
-            formData.append('email', currentUser.email);
-
-            setLoadingState(true);
-            hideResults();
-
-            try {
-                const response = await fetch(WEBHOOK_URL, { method: 'POST', body: formData });
-                if (!response.ok) throw new Error(`Ошибка: ${response.status}`);
-
-                const contentType = response.headers.get('content-type') || '';
-                if (contentType.includes('video')) {
-                    showVideoResult(URL.createObjectURL(await response.blob()));
-                } else if (contentType.includes('json')) {
-                    const data = await response.json();
-                    const url = data.video_url || data.videoUrl || data.url || data.video;
-                    url?.startsWith('http') ? showVideoResult(url) : showSuccessMessage('Запрос отправлен!');
-                } else {
-                    const text = await response.text();
-                    text.trim().startsWith('http') ? showVideoResult(text.trim()) : showSuccessMessage('Готово!');
-                }
-                setTimeout(loadHistory, 2000);
-            } catch (err) {
-                showFormError(err.message);
-            } finally {
-                setLoadingState(false);
-            }
-        });
-
         function setLoadingState(loading) {
             const btn = document.getElementById('submitBtn');
             const text = document.getElementById('btnText');
             const icon = document.getElementById('btnIcon');
-            btn.disabled = loading;
-            btn.classList.toggle('opacity-75', loading);
-            document.getElementById('loadingState').classList.toggle('hidden', !loading);
-            text.textContent = loading ? 'Генерация...' : 'Сгенерировать видео';
-            icon.innerHTML = loading 
-                ? '<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>'
-                : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>';
+            const loadingState = document.getElementById('loadingState');
+            
+            if(btn) {
+                btn.disabled = loading;
+                btn.classList.toggle('opacity-75', loading);
+            }
+            if(loadingState) loadingState.classList.toggle('hidden', !loading);
+            if(text) text.textContent = loading ? 'Генерация...' : 'Сгенерировать видео';
+            if(icon) {
+                icon.innerHTML = loading 
+                    ? '<svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>'
+                    : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>';
+            }
         }
 
         function hideResults() {
-            document.getElementById('resultSection').classList.add('hidden');
-            document.getElementById('errorSection').classList.add('hidden');
-        }
-
-        function showVideoResult(url) {
-            hideResults();
-            document.getElementById('resultTitle').textContent = 'Видео готово!';
-            document.getElementById('resultSubtitle').textContent = 'Успешно создано';
-            document.getElementById('videoContainer').classList.remove('hidden');
-            document.getElementById('resultVideo').src = url;
-            document.getElementById('downloadBtn').href = url;
-            document.getElementById('resultSection').classList.remove('hidden');
-        }
-
-        function showSuccessMessage(msg) {
-            hideResults();
-            document.getElementById('resultTitle').textContent = 'Успешно!';
-            document.getElementById('resultSubtitle').textContent = msg;
-            document.getElementById('videoContainer').classList.add('hidden');
-            document.getElementById('resultSection').classList.remove('hidden');
+            const resultSection = document.getElementById('resultSection');
+            const errorSection = document.getElementById('errorSection');
+            if(resultSection) resultSection.classList.add('hidden');
+            if(errorSection) errorSection.classList.add('hidden');
         }
 
         function showFormError(msg) {
             hideResults();
-            document.getElementById('errorText').textContent = msg;
-            document.getElementById('errorSection').classList.remove('hidden');
+            const errorText = document.getElementById('errorText');
+            const errorSection = document.getElementById('errorSection');
+            if(errorText) errorText.textContent = msg;
+            if(errorSection) {
+                errorSection.classList.remove('hidden');
+                errorSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         }
 
-        document.getElementById('newVideoBtn').addEventListener('click', () => {
+        async function waitForVideo() {
+            const started = Date.now();
+            const intervalId = setInterval(async () => {
+                await checkVideo();
+            }, 3000);
+
+            const channel = supabaseClient
+                .channel('schema-db-changes')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'generations',
+                        filter: `user_id=eq.${currentUser.id}`
+                    },
+                    (payload) => {
+                        const row = payload.new;
+                        if (row && row.video_url) {
+                            finishWaiting(row.video_url);
+                        }
+                    }
+                )
+                .subscribe();
+
+            async function checkVideo() {
+                 const { data, error } = await supabaseClient
+                    .from('generations')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                
+                if (!error && Array.isArray(data) && data.length) {
+                    const row = data[0];
+                    if (row && row.video_url) {
+                        finishWaiting(row.video_url);
+                    }
+                }
+            }
+
+            function finishWaiting(url) {
+                clearInterval(intervalId);
+                supabaseClient.removeChannel(channel);
+                setLoadingState(false);
+                showVideoResult(String(url).trim());
+                setTimeout(loadHistory, 1000);
+            }
+            
+            setTimeout(() => {
+                clearInterval(intervalId);
+                supabaseClient.removeChannel(channel);
+                const loadingState = document.getElementById('loadingState');
+                if (loadingState && !loadingState.classList.contains('hidden')) {
+                     setLoadingState(false);
+                     showFormError('Видео не получено. Попробуйте позже.');
+                }
+            }, 300000);
+        }
+
+        async function showVideoResult(url) {
+            sessionStorage.setItem('latestVideoUrl', url);
             hideResults();
-            document.getElementById('videoContainer').classList.remove('hidden');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
+
+            if (currentDownloadBlobUrl) {
+                URL.revokeObjectURL(currentDownloadBlobUrl);
+                currentDownloadBlobUrl = null;
+            }
+
+            const latestVideoPlayer = document.getElementById('latestVideoPlayer');
+            const latestVideoDownloadBtn = document.getElementById('latestVideoDownloadBtn');
+            const latestVideoContainer = document.getElementById('latestVideoContainer');
+            const resultSection = document.getElementById('resultSection');
+
+            if(latestVideoPlayer) {
+                latestVideoPlayer.src = url;
+                latestVideoPlayer.load();
+                latestVideoPlayer.play().catch(e => console.warn('Autoplay prevented:', e));
+            }
+
+            if(latestVideoDownloadBtn) {
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const blob = await response.blob();
+                    currentDownloadBlobUrl = URL.createObjectURL(blob);
+                    latestVideoDownloadBtn.href = currentDownloadBlobUrl;
+                    latestVideoDownloadBtn.download = 'mirex_video.mp4';
+                } catch (error) {
+                    console.error('Error fetching video for download:', error);
+                    latestVideoDownloadBtn.href = url;
+                }
+            }
+
+            if(latestVideoContainer) latestVideoContainer.classList.remove('hidden');
+            if(resultSection) resultSection.classList.remove('hidden');
+
+		new Audio('sound.mp3').play().catch(e => console.warn('Автовоспроизведение звука заблокировано браузером:', e));
+        }
+
+        function resetFormAndHideResults() {
+            const form = document.getElementById('generateForm');
+            if(form) form.reset();
+            
+            const pStart = document.getElementById('previewStart');
+            if(pStart) {
+                pStart.classList.add('hidden');
+                const img = pStart.querySelector('img');
+                if(img) img.src = '';
+            }
+            
+            const phStart = document.getElementById('placeholderStart');
+            if(phStart) phStart.classList.remove('hidden');
+            
+            const pEnd = document.getElementById('previewEnd');
+            if(pEnd) {
+                pEnd.classList.add('hidden');
+                const img = pEnd.querySelector('img');
+                if(img) img.src = '';
+            }
+            
+            const phEnd = document.getElementById('placeholderEnd');
+            if(phEnd) phEnd.classList.remove('hidden');
+            
+            files.image_start = null;
+            files.image_end = null;
+            
+            hideResults();
+            const latestVideoContainer = document.getElementById('latestVideoContainer');
+            if(latestVideoContainer) latestVideoContainer.classList.add('hidden');
+            sessionStorage.removeItem('latestVideoUrl');
+        }
 
         // =====================================================
         // HISTORY
         // =====================================================
-        let displayedHistoryItems = new Set(); // To track displayed items
-
         async function loadHistory() {
-            console.count('loadHistory call count');
-            console.log('loadHistory called');
+            if (!currentUser || !currentUser.id) return;
+
             const loading = document.getElementById('historyLoading');
             const empty = document.getElementById('historyEmpty');
             const grid = document.getElementById('historyGrid');
             const clearBtn = document.getElementById('clearHistoryBtn');
             
-            loading.classList.remove('hidden');
-            empty.classList.add('hidden');
-            grid.innerHTML = ''; // Clear grid on each load
-            displayedHistoryItems.clear(); // Clear the set as well
+            if(loading) loading.classList.remove('hidden');
+            if(empty) empty.classList.add('hidden');
+            if(grid) grid.innerHTML = '';
+            displayedHistoryItems.clear();
             
             try {
                 const { data, error } = await supabaseClient
                     .from('generations')
                     .select('*')
+                    .eq('user_id', currentUser.id)
                     .order('created_at', { ascending: false });
-                console.log('Data from Supabase:', data);
-                console.log('Number of items from Supabase:', data?.length);
                 
-                loading.classList.add('hidden');
+                if(loading) loading.classList.add('hidden');
+                
                 if (error || !data?.length) {
-                    empty.classList.remove('hidden');
-                    clearBtn.classList.add('hidden');
+                    if(empty) empty.classList.remove('hidden');
+                    if(clearBtn) clearBtn.classList.add('hidden');
                     return;
                 }
                 
-                clearBtn.classList.remove('hidden');
+                if(clearBtn) clearBtn.classList.remove('hidden');
                 data.forEach(item => {
+                    if (item.user_id !== currentUser.id) return;
                     if (!displayedHistoryItems.has(item.id)) {
-                        console.log('Creating card for item:', item.id);
-                        grid.appendChild(createCard(item));
+                        if(grid) grid.appendChild(createCard(item));
                         displayedHistoryItems.add(item.id);
-                    } else {
-                        console.log('Item already displayed, skipping:', item.id);
                     }
                 });
             } catch (e) {
-                loading.classList.add('hidden');
-                empty.classList.remove('hidden');
-                clearBtn.classList.add('hidden');
+                console.error('History load error:', e);
+                if(loading) loading.classList.add('hidden');
+                if(empty) empty.classList.remove('hidden');
+                if(clearBtn) clearBtn.classList.add('hidden');
             }
         }
 
         async function deleteHistoryItem(id) {
             if (!confirm('Вы действительно хотите удалить это видео?')) return;
-
             try {
-                const { error } = await supabaseClient
-                    .from('generations')
-                    .delete()
-                    .eq('id', id);
-
+                const { error } = await supabaseClient.from('generations').delete().eq('id', id);
                 if (error) throw error;
-                loadHistory(); // Перезагружаем список
+                loadHistory();
             } catch (error) {
                 alert('Ошибка при удалении: ' + error.message);
             }
         }
 
         async function clearAllHistory() {
-            if (!confirm('Вы уверены, что хотите удалить ВСЮ историю генераций? Это действие нельзя отменить.')) return;
-
+            if (!confirm('Вы уверены, что хотите удалить ВСЮ историю генераций?')) return;
             try {
-                const { error } = await supabaseClient
-                    .from('generations')
-                    .delete()
-                    .eq('user_id', currentUser.id); // Удаляем только свои записи
-
+                const { error } = await supabaseClient.from('generations').delete().eq('user_id', currentUser.id);
                 if (error) throw error;
                 loadHistory();
             } catch (error) {
@@ -828,14 +912,7 @@
                 return url;
             };
 
-            const imageUrlStart = formatGoogleDriveUrl(item.image_start);
-            const imageUrlEnd = formatGoogleDriveUrl(item.image_end);
-            
             card.innerHTML = `
-                <div class="flex justify-center items-center gap-2 p-2 bg-gray-50 rounded-t-xl">
-                    ${imageUrlStart ? `<img src="${imageUrlStart}" class="w-16 h-16 object-cover rounded-lg" alt="Start Image" referrerpolicy="no-referrer">` : ''}
-                    ${imageUrlEnd ? `<img src="${imageUrlEnd}" class="w-16 h-16 object-cover rounded-lg" alt="End Image" referrerpolicy="no-referrer">` : ''}
-                </div>
                 <div class="aspect-video bg-gray-100 relative">
                     ${item.video_url 
                         ? `<video src="${item.video_url}" class="w-full h-full object-cover" muted loop onmouseover="this.play()" onmouseout="this.pause();this.currentTime=0;"></video>`
@@ -853,33 +930,291 @@
                         <span class="px-2 py-1 rounded-full text-xs font-medium ${processing ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}">${processing ? 'Обработка...' : 'Готово'}</span>
                     </div>
                     ${item.video_url ? `<a href="${item.video_url}" download class="mt-3 w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg text-sm">Скачать</a>` : ''}
-                </div>            `;
+                </div>`;
 
-            // Навешиваем событие удаления на кнопку
             const deleteBtn = card.querySelector('.delete-btn');
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Чтобы не срабатывали другие клики если они будут
-                deleteHistoryItem(item.id);
-            });
+            if(deleteBtn) {
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteHistoryItem(item.id);
+                });
+            }
 
             return card;
         }
 
-        document.getElementById('refreshHistory').addEventListener('click', loadHistory);
-        document.getElementById('clearHistoryBtn').addEventListener('click', clearAllHistory);
+        // =====================================================
+        // MAIN INITIALIZATION
+        // =====================================================
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('DOM Content Loaded');
 
-        // =====================================================
-        // INIT
-        // =====================================================
-        (async function init() {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session?.user) {
-                currentUser = session.user;
-                // showApp(); // Удалено
-            } else {
-                // showAuth(); // Удалено
+            // 1. Setup Event Listeners
+            document.querySelectorAll('.toggle-password').forEach(button => {
+                button.addEventListener('click', function() {
+                    const input = document.getElementById(this.dataset.target);
+                    const eyeOpen = this.querySelector('.eye-open');
+                    const eyeClosed = this.querySelector('.eye-closed');
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        eyeOpen.classList.add('hidden');
+                        eyeClosed.classList.remove('hidden');
+                    } else {
+                        input.type = 'password';
+                        eyeOpen.classList.remove('hidden');
+                        eyeClosed.classList.add('hidden');
+                    }
+                });
+            });
+
+            safeAddEventListener('tabLogin', 'click', () => switchTab('login'));
+            safeAddEventListener('tabAdmin', 'click', () => switchTab('admin'));
+            safeAddEventListener('authLogo', 'click', handleLogoClick);
+            
+            safeAddEventListener('logoutBtn', 'click', async () => {
+                localStorage.removeItem('designerSession');
+                currentUser = null;
+                await supabaseClient.auth.signOut();
+                showAuth();
+            });
+
+            // Login Form
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    hideAuthMessages();
+                    const btn = document.getElementById('loginBtn');
+                    const email = document.getElementById('loginEmail').value.trim();
+                    const password = document.getElementById('loginPassword').value;
+                    
+                    if (!email || !password) {
+                        showAuthError('Заполните все поля');
+                        return;
+                    }
+                    
+                    setButtonLoading(btn, true, 'Войти');
+                    try {
+                        const enc = new TextEncoder();
+                        const buf = await crypto.subtle.digest('SHA-256', enc.encode(password));
+                        const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+                        
+                        const { data: designers, error: dbError } = await supabaseClient
+                            .from('designers')
+                            .select('*')
+                            .eq('email', email)
+                            .eq('password_hash', hex)
+                            .maybeSingle();
+                            
+                        if (designers) {
+                            currentUser = { id: designers.id, email: designers.email, role: 'designer' };
+                            localStorage.setItem('designerSession', JSON.stringify(currentUser));
+                            setButtonLoading(btn, false, 'Войти');
+                            showApp();
+                            return;
+                        }
+                        
+                        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                        if (error) showAuthError(errorTranslations[error.message] || error.message);
+                    } catch (err) {
+                        showAuthError('Ошибка подключения: ' + err.message);
+                    } finally {
+                        if (!currentUser) setButtonLoading(btn, false, 'Войти');
+                    }
+                });
             }
-        })();
+
+            // Admin Form
+            const adminForm = document.getElementById('adminForm');
+            if (adminForm) {
+                adminForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const email = document.getElementById('adminEmail').value.trim();
+                    const password = document.getElementById('adminPassword').value.trim();
+                    const btn = document.getElementById('adminBtn');
+
+                    if (!email || !password) {
+                        const msg = document.getElementById('adminMessage');
+                        if(msg) {
+                            msg.textContent = 'Заполните все поля';
+                            msg.className = 'mt-2 text-sm text-center text-red-600';
+                        }
+                        return;
+                    }
+
+                    setButtonLoading(btn, true, 'Создание...');
+                    try {
+                        const enc = new TextEncoder();
+                        const buf = await crypto.subtle.digest('SHA-256', enc.encode(password));
+                        const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+                        const { error } = await supabaseClient.from('designers').insert([{ email, password_hash: hex }]);
+                        if (error) throw error;
+                        
+                        const msg = document.getElementById('adminMessage');
+                        if(msg) {
+                            msg.textContent = 'Дизайнер успешно создан!';
+                            msg.className = 'mt-2 text-xs text-center text-green-600';
+                        }
+                        e.target.reset();
+                        loadDesigners();
+                    } catch (err) {
+                        const msg = document.getElementById('adminMessage');
+                        if(msg) {
+                            msg.textContent = 'Ошибка: ' + err.message;
+                            msg.className = 'mt-2 text-xs text-center text-red-600';
+                        }
+                    }
+                    setButtonLoading(btn, false, 'Создать дизайнера');
+                });
+            }
+
+            // Generate Form
+            const generateForm = document.getElementById('generateForm');
+            if (generateForm) {
+                generateForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+
+                    if (!files.image_start || !files.image_end) {
+                        showFormError('Загрузите оба изображения');
+                        return;
+                    }
+
+                    if (!currentUser) {
+                        // Double check localStorage before failing
+                        const saved = localStorage.getItem('designerSession');
+                        if (saved) {
+                            try { currentUser = JSON.parse(saved); } catch {}
+                        }
+                        if (!currentUser) {
+                            showFormError('Ошибка авторизации. Пожалуйста, войдите снова.');
+                            return;
+                        }
+                    }
+
+                    const formData = new FormData();
+                    formData.append('image_start', files.image_start);
+                    formData.append('image_end', files.image_end);
+                    formData.append('user_id', currentUser.id);
+
+                    setLoadingState(true);
+                    hideResults();
+
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 300000);
+                        const response = await fetch(WEBHOOK_URL, { method: 'POST', body: formData, signal: controller.signal });
+                        clearTimeout(timeoutId);
+                        
+                        if (response.ok) {
+                            try {
+                                const json = await response.json();
+                                if (Array.isArray(json) && json.length > 0) {
+                                    const firstItem = json[0];
+                                    if (firstItem.code === 402 || (firstItem.msg && firstItem.msg.includes('Credits insufficient'))) {
+                                        throw new Error('Недостаточно кредитов для генерации видео. Пожалуйста, пополните баланс.');
+                                    }
+                                }
+                            } catch (e) {
+                                if (e.message.includes('Недостаточно кредитов')) throw e;
+                            }
+                        } else {
+                            if (response.status === 402) {
+                                throw new Error('Недостаточно кредитов для генерации видео.');
+                            }
+                        }
+
+                        await waitForVideo();
+                    } catch (err) {
+                        if (err.message.includes('Недостаточно кредитов')) {
+                            setLoadingState(false);
+                            showFormError(err.message);
+                            return;
+                        }
+                        console.warn('Fetch error:', err);
+                        await waitForVideo();
+                    }
+                });
+            }
+
+            safeAddEventListener('refreshHistory', 'click', loadHistory);
+            safeAddEventListener('clearHistoryBtn', 'click', clearAllHistory);
+            safeAddEventListener('latestVideoNewBtn', 'click', () => {
+                resetFormAndHideResults();
+                const gf = document.getElementById('generateForm');
+                if(gf) gf.classList.remove('hidden');
+            });
+
+            // Initialize Drop Zones
+            initDropZone('dropZoneStart', 'fileStart', 'previewStart', 'placeholderStart', 'image_start');
+            initDropZone('dropZoneEnd', 'fileEnd', 'previewEnd', 'placeholderEnd', 'image_end');
+
+            // 2. Initialize Session
+            // Check if we need to clear preview on reload
+            if (performance.navigation.type === 1) { 
+                 sessionStorage.removeItem('latestVideoUrl');
+            }
+
+            // Check for previous video result
+            const latestVideoUrl = sessionStorage.getItem('latestVideoUrl');
+            if (latestVideoUrl) {
+                showVideoResult(latestVideoUrl);
+                const gf = document.getElementById('generateForm');
+                if(gf) gf.classList.add('hidden');
+            } else {
+                const gf = document.getElementById('generateForm');
+                if(gf) gf.classList.remove('hidden');
+            }
+
+            // Restore Session
+            try {
+                const saved = localStorage.getItem('designerSession');
+                if (saved) {
+                    console.log('Restoring designer session from localStorage');
+                    currentUser = JSON.parse(saved);
+                    showApp();
+                } else {
+                    const { data: { session } } = await supabaseClient.auth.getSession();
+                    if (session?.user) {
+                        console.log('Restoring Supabase session');
+                        currentUser = session.user;
+                        showApp();
+                    } else {
+                        console.log('No session found, showing auth');
+                        showAuth();
+                    }
+                }
+            } catch (e) {
+                console.error('Error restoring session:', e);
+                localStorage.removeItem('designerSession');
+                showAuth();
+            }
+
+            // 3. Setup Auth Listener (after initial check)
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                console.log('Auth state change:', event);
+                
+                // If we have a custom designer session, ignore Supabase signs outs unless explicit
+                const designerSession = localStorage.getItem('designerSession');
+                if (designerSession) {
+                    if (!currentUser) {
+                        try {
+                            currentUser = JSON.parse(designerSession);
+                            showApp();
+                        } catch(e) {}
+                    }
+                    return; 
+                }
+
+                if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+                    currentUser = session?.user || null;
+                    if(currentUser) showApp(); 
+                } else if (event === 'SIGNED_OUT') {
+                    currentUser = null;
+                    showAuth();
+                }
+            });
+        });
     </script>
+
 </body>
 </html>
