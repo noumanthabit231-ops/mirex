@@ -353,7 +353,7 @@
         // =====================================================
         const SUPABASE_URL = 'https://gqxxueddcodsxujsslje.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeHh1ZWRkY29kc3h1anNzbGplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzI1NjYsImV4cCI6MjA4NjMwODU2Nn0.39LK0iPD5iubhLcM--QnydkTWe9lOYtITWGRZnCIYZQ';
-        const WEBHOOK_URL = 'https://mirex.site/webhook/v2';
+        const WEBHOOK_URL = 'https://mirex.site/webhook/video-gen';
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let currentDownloadBlobUrl = null;
@@ -793,8 +793,6 @@
 
             if(latestVideoContainer) latestVideoContainer.classList.remove('hidden');
             if(resultSection) resultSection.classList.remove('hidden');
-
-		new Audio('sound.mp3').play().catch(e => console.warn('Автовоспроизведение звука заблокировано браузером:', e));
         }
 
         function resetFormAndHideResults() {
