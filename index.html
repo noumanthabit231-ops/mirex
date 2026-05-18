@@ -779,7 +779,11 @@
             const latestVideoDownloadBtn = document.getElementById('latestVideoDownloadBtn');
             const latestVideoContainer = document.getElementById('latestVideoContainer');
             const resultSection = document.getElementById('resultSection');
-            if(latestVideoPlayer) { latestVideoPlayer.src = url; latestVideoPlayer.load(); latestVideoPlayer.play().catch(e=>console.warn); }
+            if(latestVideoPlayer && url && typeof url === 'string' && url.startsWith('http')) { 
+                latestVideoPlayer.src = url; 
+                latestVideoPlayer.load(); 
+                latestVideoPlayer.play().catch(e=>console.warn); 
+            }
             if(latestVideoDownloadBtn) {
                 fetch(url).then(res => res.blob()).then(blob => {
                     if (currentDownloadBlobUrl) URL.revokeObjectURL(currentDownloadBlobUrl);
@@ -820,10 +824,10 @@
             const hasVideo = !!item.video_url;
             const statusText = hasVideo ? 'Готово' : (item.status === 'failed' || item.status === 'expired' ? 'Ошибка' : 'Обработка...');
             const statusClass = hasVideo ? 'bg-green-100 text-green-700' : (item.status === 'failed' || item.status === 'expired' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700');
-
+            const isValidVideoUrl = hasVideo && item.video_url && typeof item.video_url === 'string' && item.video_url.startsWith('http');
             card.innerHTML = `
                 <div class="aspect-video bg-gray-100 relative">
-                    ${hasVideo 
+                    ${isValidVideoUrl 
                         ? `<video src="${item.video_url}" class="history-video w-full h-full object-cover" muted loop onmouseover="this.play()" onmouseout="this.pause();this.currentTime=0;"></video>`
                         : `<div class="w-full h-full flex items-center justify-center"><div class="loader-ring" style="width:30px;height:30px;border-width:2px;"></div></div>`
                     }
