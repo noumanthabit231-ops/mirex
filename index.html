@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="no-referrer">
-    <title>Mirex ИИ облёты — Генерация видео со звуком</title>
+    <title>Mirex ИИ облёты — Генерация видео</title>
     <script>
         (function(){
             var ow = console.warn;
@@ -88,41 +88,15 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .thumb-grid {
-            display: flex;
-            gap: 8px;
-            margin-top: 8px;
-            cursor: pointer;
-        }
-        .thumb-img {
-            width: 40px;
-            height: 40px;
+        /* Видео-превью в истории */
+        .history-video {
+            width: 100%;
+            height: 100%;
             object-fit: cover;
-            border-radius: 8px;
-            border: 1px solid #e5e7eb;
             transition: transform 0.2s;
         }
-        .thumb-img:hover {
-            transform: scale(1.05);
-            border-color: #10b981;
-        }
-        .modal-img {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            cursor: pointer;
-        }
-        .modal-img img {
-            max-width: 90vw;
-            max-height: 90vh;
-            object-fit: contain;
+        .history-card:hover .history-video {
+            transform: scale(1.02);
         }
     </style>
 </head>
@@ -289,17 +263,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Звуковое сопровождение -->
-                <div class="mb-6 p-4 bg-gray-50 rounded-xl">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">🎵 Фоновая музыка (из GitHub)</label>
-                    <select id="audioTrackSelect" class="w-full px-4 py-2 border border-gray-200 rounded-lg">
-                        <option value="">Без музыки</option>
-                        <!-- Список треков будет заполнен из массива AUDIO_TRACKS -->
-                    </select>
-                    <p class="text-xs text-gray-400 mt-1">Музыка будет проигрываться вместе с видео (не сохраняется в файл).</p>
-                </div>
-
                 <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-4 px-8 rounded-xl transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-3">
                     <svg id="btnIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
@@ -312,7 +275,7 @@
                 <div class="bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-100">
                     <div class="flex justify-center mb-6"><div class="loader-ring"></div></div>
                     <h3 class="text-xl font-bold text-gray-900 mb-2">ИИ создаёт магию...</h3>
-                    <p class="text-gray-500">Обычно занимает 2-3 минуты. Вы можете закрыть страницу — видео появится в истории.</p>
+                    <p class="text-gray-500">Обычно занимает 2-3 минуты. Если задерживается — автоматически повторим.</p>
                     <button id="manualCheckBtn" class="mt-4 text-emerald-600 underline text-sm">Проверить статус сейчас</button>
                 </div>
             </div>
@@ -328,11 +291,6 @@
                         <button id="latestVideoNewBtn" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-xl transition-all">
                             Сделать новое видео
                         </button>
-                    </div>
-                    <!-- Аудиоплеер для выбранного трека -->
-                    <div id="audioPlayerContainer" class="mt-4 pt-4 border-t border-gray-100 hidden">
-                        <label class="text-sm font-medium text-gray-600">🎧 Фоновая музыка</label>
-                        <audio id="resultAudioPlayer" controls class="w-full mt-2"></audio>
                     </div>
                 </div>
             </div>
@@ -363,7 +321,7 @@
                             </svg>
                             <span class="hidden sm:inline">Очистить всё</span>
                         </button>
-                        <button id="refreshHistory" class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all">
+                        <button id="refreshHistory" class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                             </svg>
@@ -397,26 +355,134 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeHh1ZWRkY29kc3h1anNzbGplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzI1NjYsImV4cCI6MjA4NjMwODU2Nn0.39LK0iPD5iubhLcM--QnydkTWe9lOYtITWGRZnCIYZQ';
         const WEBHOOK_URL = 'https://mirex.site/webhook/v2';
 
-        // === ЗВУКИ ИЗ GITHUB (замените ссылки на свои) ===
-        // Положите .mp3 или .ogg файлы в папку /sounds/ вашего GitHub Pages
-        // Пример: https://ваш-username.github.io/репозиторий/sounds/forest.mp3
-        const AUDIO_TRACKS = [
-            { name: "Спокойная мелодия", url: "https://raw.githubusercontent.com/ваш-репозиторий/sounds/calm.mp3" },
-            { name: "Энергичный бит", url: "https://raw.githubusercontent.com/ваш-репозиторий/sounds/energy.mp3" },
-            { name: "Эмбиент", url: "https://raw.githubusercontent.com/ваш-репозиторий/sounds/ambient.mp3" }
-        ];
-        // Если ссылки не работают, замените на свои реальные raw-ссылки из GitHub.
+        // === ВСТРОЕННЫЕ ЗВУКИ (Base64 + Web Audio) ===
+        // Генерация коротких звуков через AudioContext (чтобы не было внешних файлов)
+        let audioCtx = null;
+        function playBeep(type) {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const now = audioCtx.currentTime;
+                const gain = audioCtx.createGain();
+                gain.connect(audioCtx.destination);
+                const osc = audioCtx.createOscillator();
+                osc.connect(gain);
+                
+                if (type === 'success') {
+                    // "дзынь" - две короткие ноты
+                    osc.frequency.value = 880;
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+                    osc.start();
+                    osc.stop(now + 0.5);
+                    
+                    // вторая нота чуть выше
+                    const osc2 = audioCtx.createOscillator();
+                    osc2.connect(gain);
+                    osc2.frequency.value = 1046.5;
+                    osc2.start(now + 0.15);
+                    osc2.stop(now + 0.65);
+                } else if (type === 'error') {
+                    // "бум" - низкий звук с шумом
+                    osc.frequency.value = 120;
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+                    osc.start();
+                    osc.stop(now + 0.8);
+                    
+                    // добавим шумовой щелчок
+                    const bufferSize = 4096;
+                    const noise = audioCtx.createScriptProcessor(bufferSize, 1, 1);
+                    noise.connect(gain);
+                    noise.onaudioprocess = (e) => {
+                        const output = e.outputBuffer.getChannelData(0);
+                        for (let i = 0; i < bufferSize; i++) {
+                            output[i] = (Math.random() - 0.5) * 0.1;
+                        }
+                    };
+                    noise.start = noise.connect;
+                    noise.start(now);
+                    noise.stop(now + 0.2);
+                }
+                // Не забываем возобновить audio context после user gesture
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            } catch(e) { console.warn('Sound error:', e); }
+        }
+
+        // Инициализация звука после первого клика пользователя
+        function initAudioOnFirstClick() {
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            } else if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                audioCtx.resume();
+            }
+            document.removeEventListener('click', initAudioOnFirstClick);
+        }
+        document.addEventListener('click', initAudioOnFirstClick);
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let currentDownloadBlobUrl = null;
         let displayedHistoryItems = new Set();
-        let currentAudio = null; // текущий аудиоэлемент для остановки
-
-        // DOM Elements
-        const files = { image_start: null, image_end: null };
         let currentUser = null;
         let logoClicks = 0;
         let clickTimeout;
+        const files = { image_start: null, image_end: null };
+
+        // Realtime subscription для новых/обновленных видео
+        let generationSubscription = null;
+        function subscribeToGenerations() {
+            if (generationSubscription) return;
+            generationSubscription = supabaseClient
+                .channel('generations-changes')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'generations' }, (payload) => {
+                    if (currentUser && payload.new.user_id === currentUser.id) {
+                        // Новая запись — возможно, video_url ещё нет, но если есть — звук
+                        if (payload.new.video_url) {
+                            playBeep('success');
+                            loadHistory(); // обновим историю
+                            // если это самая новая и мы ждём — показываем
+                            const loadingState = document.getElementById('loadingState');
+                            if (loadingState && !loadingState.classList.contains('hidden')) {
+                                setLoadingState(false);
+                                showVideoResult(payload.new.video_url);
+                            }
+                        } else {
+                            loadHistory();
+                        }
+                    }
+                })
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'generations' }, (payload) => {
+                    if (currentUser && payload.new.user_id === currentUser.id) {
+                        const oldStatus = payload.old.status;
+                        const newStatus = payload.new.status;
+                        // Если статус стал success или появился video_url
+                        if ((newStatus === 'success' || payload.new.video_url) && (!oldStatus || oldStatus !== 'success')) {
+                            playBeep('success');
+                            loadHistory();
+                            const loadingState = document.getElementById('loadingState');
+                            if (loadingState && !loadingState.classList.contains('hidden')) {
+                                setLoadingState(false);
+                                showVideoResult(payload.new.video_url);
+                            }
+                        } else if (newStatus === 'failed' || newStatus === 'expired') {
+                            playBeep('error');
+                            loadHistory();
+                            const loadingState = document.getElementById('loadingState');
+                            if (loadingState && !loadingState.classList.contains('hidden')) {
+                                setLoadingState(false);
+                                showFormError('Генерация не удалась: ' + (payload.new.error_message || 'статус ' + newStatus));
+                            }
+                        } else {
+                            loadHistory();
+                        }
+                    }
+                })
+                .subscribe();
+        }
 
         // Helper
         function safeAddEventListener(id, event, handler) {
@@ -471,7 +537,6 @@
             }
         }
 
-        // Auth tabs
         function switchTab(tab) {
             const loginForm = document.getElementById('loginForm');
             const adminForm = document.getElementById('adminForm');
@@ -495,7 +560,6 @@
             }
         }
 
-        // Auth messages
         const errorTranslations = {
             'Invalid login credentials': 'Неверный email или пароль',
             'User already registered': 'Этот email уже зарегистрирован',
@@ -536,6 +600,7 @@
             if(appSection) appSection.classList.remove('hidden');
             if(userEmailSpan) userEmailSpan.textContent = (currentUser && currentUser.email) ? currentUser.email : '';
             loadHistory();
+            subscribeToGenerations();
         }
         function setButtonLoading(btn, loading, text) {
             if(!btn) return;
@@ -628,69 +693,50 @@
             reader.readAsDataURL(file);
         }
 
-        // Generation logic with better error handling
-        let currentWaitInterval = null;
-        let currentRealtimeChannel = null;
+        // Generation
         let currentWaitTimeout = null;
+        let currentRealtimeCheck = null;
         let manualCheckActive = false;
-
         function stopWaitingForVideo() {
-            if (currentWaitInterval) clearInterval(currentWaitInterval);
             if (currentWaitTimeout) clearTimeout(currentWaitTimeout);
-            if (currentRealtimeChannel) supabaseClient.removeChannel(currentRealtimeChannel);
-            currentWaitInterval = null;
+            if (currentRealtimeCheck) clearInterval(currentRealtimeCheck);
             currentWaitTimeout = null;
-            currentRealtimeChannel = null;
+            currentRealtimeCheck = null;
         }
-
         async function waitForVideo(userId, onSuccess) {
             stopWaitingForVideo();
-            const started = Date.now();
-            const maxWait = 10 * 60 * 1000; // 10 минут
-
-            // Функция проверки через запрос
-            const checkVideo = async () => {
+            const checkLatest = async () => {
                 const { data, error } = await supabaseClient
                     .from('generations')
-                    .select('*')
+                    .select('video_url, status, error_message')
                     .eq('user_id', userId)
                     .order('created_at', { ascending: false })
                     .limit(1);
-                if (!error && Array.isArray(data) && data.length && data[0].video_url) {
-                    onSuccess(data[0].video_url);
-                    return true;
+                if (!error && data && data.length) {
+                    const item = data[0];
+                    if (item.video_url) {
+                        onSuccess(item.video_url);
+                        return true;
+                    } else if (item.status === 'failed' || item.status === 'expired') {
+                        setLoadingState(false);
+                        showFormError('Генерация не удалась: ' + (item.error_message || item.status));
+                        return true;
+                    }
                 }
                 return false;
             };
-
-            // Сначала проверим сразу
-            const found = await checkVideo();
-            if (found) return;
-
-            // Подписка на изменения
-            const channel = supabaseClient
-                .channel('schema-db-changes')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'generations', filter: `user_id=eq.${userId}` }, async (payload) => {
-                    const row = payload.new;
-                    if (row && row.video_url) {
-                        onSuccess(row.video_url);
-                    }
-                })
-                .subscribe();
-            currentRealtimeChannel = channel;
-
-            // Polling на всякий случай
-            currentWaitInterval = setInterval(async () => {
-                const done = await checkVideo();
-                if (done) clearInterval(currentWaitInterval);
-            }, 5000);
-
-            // Таймаут
+            const done = await checkLatest();
+            if (done) return;
+            // Подписка на изменения сработает через реальное время, но добавим polling на всякий случай
+            currentRealtimeCheck = setInterval(async () => {
+                const doneNow = await checkLatest();
+                if (doneNow) clearInterval(currentRealtimeCheck);
+            }, 10000);
             currentWaitTimeout = setTimeout(() => {
                 stopWaitingForVideo();
                 setLoadingState(false);
-                showFormError('Видео не получено за 10 минут. Возможно, генерация задерживается. Попробуйте обновить страницу или проверьте статус позже в истории.');
-            }, maxWait);
+                showFormError('Видео не получено за 10 минут. Но оно может появиться позже — проверьте историю.');
+            }, 10 * 60 * 1000);
         }
 
         function setLoadingState(loading) {
@@ -721,6 +767,7 @@
             const errorSection = document.getElementById('errorSection');
             if(errorText) errorText.textContent = msg;
             if(errorSection) errorSection.classList.remove('hidden');
+            playBeep('error');
         }
 
         function showVideoResult(url) {
@@ -732,7 +779,7 @@
             const latestVideoDownloadBtn = document.getElementById('latestVideoDownloadBtn');
             const latestVideoContainer = document.getElementById('latestVideoContainer');
             const resultSection = document.getElementById('resultSection');
-            if(latestVideoPlayer) { latestVideoPlayer.src = url; latestVideoPlayer.load(); }
+            if(latestVideoPlayer) { latestVideoPlayer.src = url; latestVideoPlayer.load(); latestVideoPlayer.play().catch(e=>console.warn); }
             if(latestVideoDownloadBtn) {
                 fetch(url).then(res => res.blob()).then(blob => {
                     if (currentDownloadBlobUrl) URL.revokeObjectURL(currentDownloadBlobUrl);
@@ -743,22 +790,7 @@
             }
             if(latestVideoContainer) latestVideoContainer.classList.remove('hidden');
             if(resultSection) resultSection.classList.remove('hidden');
-
-            // Воспроизведение выбранного звука
-            const audioSelect = document.getElementById('audioTrackSelect');
-            const selectedUrl = audioSelect ? audioSelect.value : '';
-            const audioContainer = document.getElementById('audioPlayerContainer');
-            const audioPlayer = document.getElementById('resultAudioPlayer');
-            if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-            if (selectedUrl && audioPlayer) {
-                audioPlayer.src = selectedUrl;
-                audioPlayer.load();
-                audioPlayer.play().catch(e => console.warn("Audio play failed:", e));
-                if (audioContainer) audioContainer.classList.remove('hidden');
-                currentAudio = audioPlayer;
-            } else if (audioContainer) {
-                audioContainer.classList.add('hidden');
-            }
+            playBeep('success');
         }
 
         function resetFormAndHideResults() {
@@ -778,33 +810,21 @@
             const latestVideoContainer = document.getElementById('latestVideoContainer');
             if(latestVideoContainer) latestVideoContainer.classList.add('hidden');
             sessionStorage.removeItem('latestVideoUrl');
-            // Остановить аудио
-            if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-            const audioContainer = document.getElementById('audioPlayerContainer');
-            if (audioContainer) audioContainer.classList.add('hidden');
         }
 
-        // History with start/end thumbs
+        // History card с видео-превью
         function createCard(item) {
             const card = document.createElement('div');
             card.className = 'history-card bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm relative group';
             const date = new Date(item.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-            const processing = !item.video_url;
-
-            const showImageModal = (src) => {
-                const modal = document.createElement('div');
-                modal.className = 'modal-img';
-                const img = document.createElement('img');
-                img.src = src;
-                modal.appendChild(img);
-                modal.onclick = () => modal.remove();
-                document.body.appendChild(modal);
-            };
+            const hasVideo = !!item.video_url;
+            const statusText = hasVideo ? 'Готово' : (item.status === 'failed' || item.status === 'expired' ? 'Ошибка' : 'Обработка...');
+            const statusClass = hasVideo ? 'bg-green-100 text-green-700' : (item.status === 'failed' || item.status === 'expired' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700');
 
             card.innerHTML = `
                 <div class="aspect-video bg-gray-100 relative">
-                    ${item.video_url 
-                        ? `<video src="${item.video_url}" class="w-full h-full object-cover" muted loop onmouseover="this.play()" onmouseout="this.pause();this.currentTime=0;"></video>`
+                    ${hasVideo 
+                        ? `<video src="${item.video_url}" class="history-video w-full h-full object-cover" muted loop onmouseover="this.play()" onmouseout="this.pause();this.currentTime=0;"></video>`
                         : `<div class="w-full h-full flex items-center justify-center"><div class="loader-ring" style="width:30px;height:30px;border-width:2px;"></div></div>`
                     }
                     <button class="delete-btn absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow-md transition-all z-10" title="Удалить">
@@ -814,21 +834,10 @@
                 <div class="p-4">
                     <div class="flex items-center justify-between">
                         <span class="text-sm text-gray-500">${date}</span>
-                        <span class="px-2 py-1 rounded-full text-xs font-medium ${processing ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}">${processing ? 'Обработка...' : 'Готово'}</span>
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${statusText}</span>
                     </div>
-                    <div class="thumb-grid">
-                        <img src="${item.image_start || ''}" class="thumb-img" data-full="${item.image_start || ''}" alt="start" title="Начальный кадр">
-                        <img src="${item.image_end || ''}" class="thumb-img" data-full="${item.image_end || ''}" alt="end" title="Конечный кадр">
-                    </div>
-                    ${item.video_url ? `<a href="${item.video_url}" download class="mt-3 w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg text-sm">Скачать</a>` : ''}
+                    ${hasVideo ? `<a href="${item.video_url}" download class="mt-3 w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg text-sm">Скачать</a>` : ''}
                 </div>`;
-            card.querySelectorAll('.thumb-img').forEach(img => {
-                img.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const full = img.getAttribute('data-full');
-                    if (full) showImageModal(full);
-                });
-            });
             const deleteBtn = card.querySelector('.delete-btn');
             if(deleteBtn) deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteHistoryItem(item.id); });
             return card;
@@ -870,7 +879,6 @@
                 }
                 if(clearBtn) clearBtn.classList.remove('hidden');
                 data.forEach(item => {
-                    if (item.user_id !== currentUser.id) return;
                     if (!displayedHistoryItems.has(item.id)) {
                         if(grid) grid.appendChild(createCard(item));
                         displayedHistoryItems.add(item.id);
@@ -884,36 +892,30 @@
             }
         }
 
-        // Fill audio tracks dropdown
-        function populateAudioTracks() {
-            const select = document.getElementById('audioTrackSelect');
-            if (!select) return;
-            select.innerHTML = '<option value="">Без музыки</option>';
-            AUDIO_TRACKS.forEach(track => {
-                const option = document.createElement('option');
-                option.value = track.url;
-                option.textContent = track.name;
-                select.appendChild(option);
-            });
-        }
-
-        // Manual check button during loading
         async function manualCheck() {
             if (!currentUser || manualCheckActive) return;
             manualCheckActive = true;
             const { data, error } = await supabaseClient
                 .from('generations')
-                .select('video_url')
+                .select('video_url, status, error_message')
                 .eq('user_id', currentUser.id)
                 .order('created_at', { ascending: false })
                 .limit(1);
-            if (!error && data && data[0] && data[0].video_url) {
-                stopWaitingForVideo();
-                setLoadingState(false);
-                showVideoResult(data[0].video_url);
-                loadHistory();
+            if (!error && data && data.length) {
+                const item = data[0];
+                if (item.video_url) {
+                    stopWaitingForVideo();
+                    setLoadingState(false);
+                    showVideoResult(item.video_url);
+                    loadHistory();
+                } else if (item.status === 'failed' || item.status === 'expired') {
+                    setLoadingState(false);
+                    showFormError('Генерация не удалась: ' + (item.error_message || item.status));
+                } else {
+                    alert('Видео ещё не готово. Проверьте позже.');
+                }
             } else {
-                alert('Видео ещё не готово. Попробуйте позже.');
+                alert('Не удалось проверить статус.');
             }
             manualCheckActive = false;
         }
@@ -923,7 +925,6 @@
         // =====================================================
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('DOM loaded');
-            // Password toggle
             document.querySelectorAll('.toggle-password').forEach(button => {
                 button.addEventListener('click', function() {
                     const input = document.getElementById(this.dataset.target);
@@ -955,7 +956,7 @@
             safeAddEventListener('latestVideoNewBtn', 'click', () => resetFormAndHideResults());
             safeAddEventListener('manualCheckBtn', 'click', manualCheck);
 
-            // Login form
+            // Login
             const loginForm = document.getElementById('loginForm');
             if (loginForm) {
                 loginForm.addEventListener('submit', async (e) => {
@@ -980,8 +981,13 @@
                         }
                         const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
                         if (error) showAuthError(errorTranslations[error.message] || error.message);
+                        else {
+                            const { data: { user } } = await supabaseClient.auth.getUser();
+                            currentUser = user;
+                            showApp();
+                        }
                     } catch (err) { showAuthError('Ошибка подключения: ' + err.message); }
-                    if (!currentUser) setButtonLoading(btn, false, 'Войти');
+                    setButtonLoading(btn, false, 'Войти');
                 });
             }
 
@@ -1058,7 +1064,6 @@
 
             initDropZone('dropZoneStart', 'fileStart', 'previewStart', 'placeholderStart', 'image_start');
             initDropZone('dropZoneEnd', 'fileEnd', 'previewEnd', 'placeholderEnd', 'image_end');
-            populateAudioTracks();
 
             // Session restore
             const latestVideoUrl = sessionStorage.getItem('latestVideoUrl');
