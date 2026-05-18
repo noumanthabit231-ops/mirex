@@ -270,6 +270,14 @@
                 </button>
             </form>
 
+            <div id="loadingState" class="hidden mb-12">
+                <div class="bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-100">
+                    <div class="flex justify-center mb-6"><div class="loader-ring"></div></div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">ИИ создаёт магию...</h3>
+                    <p class="text-gray-500">Обычно занимает 2-3 минуты. Если задерживается — автоматически повторим.</p>
+                </div>
+            </div>
+
             <div id="resultSection" class="hidden mb-12 fade-in">
                 <div id="latestVideoContainer" class="hidden bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-gray-100 mb-8">
                     <h3 class="text-2xl font-bold text-gray-900 mb-4">Ваше новое видео</h3>
@@ -345,54 +353,6 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeHh1ZWRkY29kc3h1anNzbGplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzI1NjYsImV4cCI6MjA4NjMwODU2Nn0.39LK0iPD5iubhLcM--QnydkTWe9lOYtITWGRZnCIYZQ';
         const WEBHOOK_URL = 'https://mirex.site/webhook/v2';
 
-        // Звуки
-        let audioCtx = null;
-        function playBeep(type) {
-            try {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const now = audioCtx.currentTime;
-                const gain = audioCtx.createGain();
-                gain.connect(audioCtx.destination);
-                const osc = audioCtx.createOscillator();
-                osc.connect(gain);
-                if (type === 'success') {
-                    osc.frequency.value = 880;
-                    gain.gain.setValueAtTime(0.3, now);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
-                    osc.start();
-                    osc.stop(now + 0.5);
-                    const osc2 = audioCtx.createOscillator();
-                    osc2.connect(gain);
-                    osc2.frequency.value = 1046.5;
-                    osc2.start(now + 0.15);
-                    osc2.stop(now + 0.65);
-                } else if (type === 'error') {
-                    osc.frequency.value = 120;
-                    gain.gain.setValueAtTime(0.4, now);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
-                    osc.start();
-                    osc.stop(now + 0.8);
-                    const bufferSize = 4096;
-                    const noise = audioCtx.createScriptProcessor(bufferSize, 1, 1);
-                    noise.connect(gain);
-                    noise.onaudioprocess = (e) => {
-                        const output = e.outputBuffer.getChannelData(0);
-                        for (let i = 0; i < bufferSize; i++) output[i] = (Math.random() - 0.5) * 0.1;
-                    };
-                    noise.start = noise.connect;
-                    noise.start(now);
-                    noise.stop(now + 0.2);
-                }
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-            } catch(e) { console.warn('Sound error:', e); }
-        }
-        function initAudioOnFirstClick() {
-            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-            else if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); }
-            document.removeEventListener('click', initAudioOnFirstClick);
-        }
-        document.addEventListener('click', initAudioOnFirstClick);
-
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let currentDownloadBlobUrl = null;
         let displayedHistoryItems = new Set();
@@ -409,7 +369,6 @@
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'generations' }, (payload) => {
                     if (currentUser && payload.new.user_id === currentUser.id) {
                         if (payload.new.video_url) {
-                            playBeep('success');
                             loadHistory();
                             const loadingState = document.getElementById('loadingState');
                             if (loadingState && !loadingState.classList.contains('hidden')) {
@@ -424,7 +383,6 @@
                         const oldStatus = payload.old.status;
                         const newStatus = payload.new.status;
                         if ((newStatus === 'success' || payload.new.video_url) && (!oldStatus || oldStatus !== 'success')) {
-                            playBeep('success');
                             loadHistory();
                             const loadingState = document.getElementById('loadingState');
                             if (loadingState && !loadingState.classList.contains('hidden')) {
@@ -432,7 +390,6 @@
                                 showVideoResult(payload.new.video_url);
                             }
                         } else if (newStatus === 'failed' || newStatus === 'expired') {
-                            playBeep('error');
                             loadHistory();
                             const loadingState = document.getElementById('loadingState');
                             if (loadingState && !loadingState.classList.contains('hidden')) {
@@ -652,7 +609,6 @@
 
         let currentWaitTimeout = null;
         let currentRealtimeCheck = null;
-        let manualCheckActive = false;
         function stopWaitingForVideo() {
             if (currentWaitTimeout) clearTimeout(currentWaitTimeout);
             if (currentRealtimeCheck) clearInterval(currentRealtimeCheck);
@@ -722,7 +678,6 @@
             const errorSection = document.getElementById('errorSection');
             if(errorText) errorText.textContent = msg;
             if(errorSection) errorSection.classList.remove('hidden');
-            playBeep('error');
         }
 
         function showVideoResult(url) {
@@ -736,7 +691,6 @@
             if(latestVideoPlayer && url && typeof url === 'string' && url.startsWith('http')) {
                 latestVideoPlayer.src = url;
                 latestVideoPlayer.load();
-                latestVideoPlayer.play().catch(e => { if (e.name !== 'NotSupportedError') console.warn(e); });
             }
             if(latestVideoDownloadBtn) {
                 fetch(url).then(res => res.blob()).then(blob => {
@@ -748,7 +702,6 @@
             }
             if(latestVideoContainer) latestVideoContainer.classList.remove('hidden');
             if(resultSection) resultSection.classList.remove('hidden');
-            playBeep('success');
         }
 
         function resetFormAndHideResults() {
@@ -858,34 +811,6 @@
             }
         }
 
-        async function manualCheck() {
-            if (!currentUser || manualCheckActive) return;
-            manualCheckActive = true;
-            const { data, error } = await supabaseClient
-                .from('generations')
-                .select('video_url, status')
-                .eq('user_id', currentUser.id)
-                .order('created_at', { ascending: false })
-                .limit(1);
-            if (!error && data && data.length) {
-                const item = data[0];
-                if (item.video_url) {
-                    stopWaitingForVideo();
-                    setLoadingState(false);
-                    showVideoResult(item.video_url);
-                    loadHistory();
-                } else if (item.status === 'failed' || item.status === 'expired') {
-                    setLoadingState(false);
-                    showFormError('Генерация не удалась: ' + item.status);
-                } else {
-                    alert('Видео ещё не готово. Статус: ' + item.status);
-                }
-            } else {
-                alert('Не удалось проверить статус.');
-            }
-            manualCheckActive = false;
-        }
-
         // =====================================================
         // INIT
         // =====================================================
@@ -920,7 +845,6 @@
             safeAddEventListener('refreshHistory', 'click', loadHistory);
             safeAddEventListener('clearHistoryBtn', 'click', clearAllHistory);
             safeAddEventListener('latestVideoNewBtn', 'click', () => resetFormAndHideResults());
-            safeAddEventListener('manualCheckBtn', 'click', manualCheck);
 
             const loginForm = document.getElementById('loginForm');
             if (loginForm) {
