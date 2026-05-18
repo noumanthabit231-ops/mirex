@@ -780,10 +780,12 @@
             const latestVideoContainer = document.getElementById('latestVideoContainer');
             const resultSection = document.getElementById('resultSection');
             if(latestVideoPlayer && url && typeof url === 'string' && url.startsWith('http')) { 
-                latestVideoPlayer.src = url; 
-                latestVideoPlayer.load(); 
-                latestVideoPlayer.play().catch(e=>console.warn); 
-            }
+                    latestVideoPlayer.src = url; 
+                    latestVideoPlayer.load(); 
+                    latestVideoPlayer.play().catch(e => {
+                        if (e.name !== 'NotSupportedError') console.warn(e);
+                    }); 
+                }
             if(latestVideoDownloadBtn) {
                 fetch(url).then(res => res.blob()).then(blob => {
                     if (currentDownloadBlobUrl) URL.revokeObjectURL(currentDownloadBlobUrl);
@@ -829,7 +831,8 @@
 const videoHtml = isValidVideoUrl 
     ? `<video src="${item.video_url}" class="history-video w-full h-full object-cover" muted loop 
         onmouseover="if(this.src && this.src.startsWith('http')) this.play();" 
-        onmouseout="this.pause();this.currentTime=0;"></video>`
+        onmouseout="this.pause();this.currentTime=0;"
+        onerror="this.style.display='none'; this.parentElement.querySelector('.video-placeholder')?.classList.remove('hidden'); this.parentElement.querySelector('.loader-ring')?.remove();">`
     : `<div class="w-full h-full flex items-center justify-center"><div class="loader-ring" style="width:30px;height:30px;border-width:2px;"></div></div>`;
 
 card.innerHTML = `
@@ -1106,6 +1109,21 @@ card.innerHTML = `
                 }
             });
         });
+        // Глобальный перехват ошибок видео в истории
+document.addEventListener('mouseover', (e) => {
+    const video = e.target.closest('video');
+    if (video && (!video.src || !video.src.startsWith('http'))) {
+        e.stopPropagation();
+        video.style.display = 'none';
+        const parent = video.parentElement;
+        if (parent && !parent.querySelector('.video-placeholder')) {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'w-full h-full flex items-center justify-center bg-gray-100 video-placeholder';
+            placeholder.innerHTML = '<div class="loader-ring" style="width:30px;height:30px;border-width:2px;"></div>';
+            parent.appendChild(placeholder);
+        }
+    }
+}, true);
     </script>
 </body>
 </html>
