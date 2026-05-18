@@ -67,11 +67,11 @@
             box-shadow: 0 10px 40px rgba(0,0,0,0.1);
         }
         .delete-btn {
-            opacity: 0;
+            opacity: 0.7;
             transition: opacity 0.2s ease, transform 0.2s ease;
             transform: scale(0.9);
         }
-        .history-card:hover .delete-btn {
+        .delete-btn:hover {
             opacity: 1;
             transform: scale(1);
         }
@@ -88,7 +88,6 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        /* Видео-превью в истории */
         .history-video {
             width: 100%;
             height: 100%;
@@ -355,71 +354,50 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeHh1ZWRkY29kc3h1anNzbGplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzI1NjYsImV4cCI6MjA4NjMwODU2Nn0.39LK0iPD5iubhLcM--QnydkTWe9lOYtITWGRZnCIYZQ';
         const WEBHOOK_URL = 'https://mirex.site/webhook/v2';
 
-        // === ВСТРОЕННЫЕ ЗВУКИ (Base64 + Web Audio) ===
-        // Генерация коротких звуков через AudioContext (чтобы не было внешних файлов)
+        // Звуки
         let audioCtx = null;
         function playBeep(type) {
             try {
-                if (!audioCtx) {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                }
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const now = audioCtx.currentTime;
                 const gain = audioCtx.createGain();
                 gain.connect(audioCtx.destination);
                 const osc = audioCtx.createOscillator();
                 osc.connect(gain);
-                
                 if (type === 'success') {
-                    // "дзынь" - две короткие ноты
                     osc.frequency.value = 880;
                     gain.gain.setValueAtTime(0.3, now);
                     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
                     osc.start();
                     osc.stop(now + 0.5);
-                    
-                    // вторая нота чуть выше
                     const osc2 = audioCtx.createOscillator();
                     osc2.connect(gain);
                     osc2.frequency.value = 1046.5;
                     osc2.start(now + 0.15);
                     osc2.stop(now + 0.65);
                 } else if (type === 'error') {
-                    // "бум" - низкий звук с шумом
                     osc.frequency.value = 120;
                     gain.gain.setValueAtTime(0.4, now);
                     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
                     osc.start();
                     osc.stop(now + 0.8);
-                    
-                    // добавим шумовой щелчок
                     const bufferSize = 4096;
                     const noise = audioCtx.createScriptProcessor(bufferSize, 1, 1);
                     noise.connect(gain);
                     noise.onaudioprocess = (e) => {
                         const output = e.outputBuffer.getChannelData(0);
-                        for (let i = 0; i < bufferSize; i++) {
-                            output[i] = (Math.random() - 0.5) * 0.1;
-                        }
+                        for (let i = 0; i < bufferSize; i++) output[i] = (Math.random() - 0.5) * 0.1;
                     };
                     noise.start = noise.connect;
                     noise.start(now);
                     noise.stop(now + 0.2);
                 }
-                // Не забываем возобновить audio context после user gesture
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
+                if (audioCtx.state === 'suspended') audioCtx.resume();
             } catch(e) { console.warn('Sound error:', e); }
         }
-
-        // Инициализация звука после первого клика пользователя
         function initAudioOnFirstClick() {
-            if (audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            } else if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                audioCtx.resume();
-            }
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            else if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); }
             document.removeEventListener('click', initAudioOnFirstClick);
         }
         document.addEventListener('click', initAudioOnFirstClick);
@@ -432,7 +410,6 @@
         let clickTimeout;
         const files = { image_start: null, image_end: null };
 
-        // Realtime subscription для новых/обновленных видео
         let generationSubscription = null;
         function subscribeToGenerations() {
             if (generationSubscription) return;
@@ -440,26 +417,21 @@
                 .channel('generations-changes')
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'generations' }, (payload) => {
                     if (currentUser && payload.new.user_id === currentUser.id) {
-                        // Новая запись — возможно, video_url ещё нет, но если есть — звук
                         if (payload.new.video_url) {
                             playBeep('success');
-                            loadHistory(); // обновим историю
-                            // если это самая новая и мы ждём — показываем
+                            loadHistory();
                             const loadingState = document.getElementById('loadingState');
                             if (loadingState && !loadingState.classList.contains('hidden')) {
                                 setLoadingState(false);
                                 showVideoResult(payload.new.video_url);
                             }
-                        } else {
-                            loadHistory();
-                        }
+                        } else loadHistory();
                     }
                 })
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'generations' }, (payload) => {
                     if (currentUser && payload.new.user_id === currentUser.id) {
                         const oldStatus = payload.old.status;
                         const newStatus = payload.new.status;
-                        // Если статус стал success или появился video_url
                         if ((newStatus === 'success' || payload.new.video_url) && (!oldStatus || oldStatus !== 'success')) {
                             playBeep('success');
                             loadHistory();
@@ -474,24 +446,20 @@
                             const loadingState = document.getElementById('loadingState');
                             if (loadingState && !loadingState.classList.contains('hidden')) {
                                 setLoadingState(false);
-                                showFormError('Генерация не удалась: ' + (payload.new.error_message || 'статус ' + newStatus));
+                                showFormError('Генерация не удалась: статус ' + newStatus);
                             }
-                        } else {
-                            loadHistory();
-                        }
+                        } else loadHistory();
                     }
                 })
                 .subscribe();
         }
 
-        // Helper
         function safeAddEventListener(id, event, handler) {
             const el = document.getElementById(id);
             if (el) el.addEventListener(event, handler);
             else console.warn(`Element ${id} not found`);
         }
 
-        // Logo admin easter egg
         function handleLogoClick() {
             logoClicks++;
             clearTimeout(clickTimeout);
@@ -610,7 +578,6 @@
             if(span) span.textContent = loading ? 'Загрузка...' : text;
         }
 
-        // Designer management
         async function loadDesigners() {
             const list = document.getElementById('designersList');
             if(!list) return;
@@ -647,7 +614,6 @@
             }
         }
 
-        // Drop zones
         function initDropZone(zoneId, inputId, previewId, placeholderId, fileKey) {
             const zone = document.getElementById(zoneId);
             const input = document.getElementById(inputId);
@@ -693,7 +659,6 @@
             reader.readAsDataURL(file);
         }
 
-        // Generation
         let currentWaitTimeout = null;
         let currentRealtimeCheck = null;
         let manualCheckActive = false;
@@ -708,7 +673,7 @@
             const checkLatest = async () => {
                 const { data, error } = await supabaseClient
                     .from('generations')
-                    .select('video_url, status, error_message')
+                    .select('video_url, status')
                     .eq('user_id', userId)
                     .order('created_at', { ascending: false })
                     .limit(1);
@@ -719,7 +684,7 @@
                         return true;
                     } else if (item.status === 'failed' || item.status === 'expired') {
                         setLoadingState(false);
-                        showFormError('Генерация не удалась: ' + (item.error_message || item.status));
+                        showFormError('Генерация не удалась: ' + item.status);
                         return true;
                     }
                 }
@@ -727,7 +692,6 @@
             };
             const done = await checkLatest();
             if (done) return;
-            // Подписка на изменения сработает через реальное время, но добавим polling на всякий случай
             currentRealtimeCheck = setInterval(async () => {
                 const doneNow = await checkLatest();
                 if (doneNow) clearInterval(currentRealtimeCheck);
@@ -735,7 +699,7 @@
             currentWaitTimeout = setTimeout(() => {
                 stopWaitingForVideo();
                 setLoadingState(false);
-                showFormError('Видео не получено за 10 минут. Но оно может появиться позже — проверьте историю.');
+                showFormError('Видео не получено за 10 минут. Проверьте историю.');
             }, 10 * 60 * 1000);
         }
 
@@ -773,19 +737,16 @@
         function showVideoResult(url) {
             sessionStorage.setItem('latestVideoUrl', url);
             hideResults();
-
             if (currentDownloadBlobUrl) URL.revokeObjectURL(currentDownloadBlobUrl);
             const latestVideoPlayer = document.getElementById('latestVideoPlayer');
             const latestVideoDownloadBtn = document.getElementById('latestVideoDownloadBtn');
             const latestVideoContainer = document.getElementById('latestVideoContainer');
             const resultSection = document.getElementById('resultSection');
-            if(latestVideoPlayer && url && typeof url === 'string' && url.startsWith('http')) { 
-                    latestVideoPlayer.src = url; 
-                    latestVideoPlayer.load(); 
-                    latestVideoPlayer.play().catch(e => {
-                        if (e.name !== 'NotSupportedError') console.warn(e);
-                    }); 
-                }
+            if(latestVideoPlayer && url && typeof url === 'string' && url.startsWith('http')) {
+                latestVideoPlayer.src = url;
+                latestVideoPlayer.load();
+                latestVideoPlayer.play().catch(e => { if (e.name !== 'NotSupportedError') console.warn(e); });
+            }
             if(latestVideoDownloadBtn) {
                 fetch(url).then(res => res.blob()).then(blob => {
                     if (currentDownloadBlobUrl) URL.revokeObjectURL(currentDownloadBlobUrl);
@@ -818,7 +779,6 @@
             sessionStorage.removeItem('latestVideoUrl');
         }
 
-        // History card с видео-превью
         function createCard(item) {
             const card = document.createElement('div');
             card.className = 'history-card bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm relative group';
@@ -827,28 +787,32 @@
             const statusText = hasVideo ? 'Готово' : (item.status === 'failed' || item.status === 'expired' ? 'Ошибка' : 'Обработка...');
             const statusClass = hasVideo ? 'bg-green-100 text-green-700' : (item.status === 'failed' || item.status === 'expired' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700');
             const isValidVideoUrl = hasVideo && item.video_url && typeof item.video_url === 'string' && item.video_url.startsWith('http');
-
-const videoHtml = isValidVideoUrl 
-    ? `<video src="${item.video_url}" class="history-video w-full h-full object-cover" muted loop 
-        onmouseover="if(this.src && this.src.startsWith('http')) this.play();" 
-        onmouseout="this.pause();this.currentTime=0;"
-        onerror="this.style.display='none'; this.parentElement.querySelector('.video-placeholder')?.classList.remove('hidden'); this.parentElement.querySelector('.loader-ring')?.remove();">`
-    : `<div class="w-full h-full flex items-center justify-center"><div class="loader-ring" style="width:30px;height:30px;border-width:2px;"></div></div>`;
-
-card.innerHTML = `
-    <div class="aspect-video bg-gray-100 relative">
-        ${videoHtml}
-        <button class="delete-btn absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow-md transition-all z-10" title="Удалить">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-        </button>
-    </div>
-    <div class="p-4">
-        <div class="flex items-center justify-between">
-            <span class="text-sm text-gray-500">${date}</span>
-            <span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${statusText}</span>
-        </div>
-        ${isValidVideoUrl ? `<a href="${item.video_url}" download class="mt-3 w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg text-sm">Скачать</a>` : ''}
-    </div>`;
+            const videoHtml = isValidVideoUrl 
+                ? `<video src="${item.video_url}" class="history-video w-full h-full object-cover" muted loop 
+                    onmouseover="if(this.src && this.src.startsWith('http')) this.play();" 
+                    onmouseout="this.pause();this.currentTime=0;"
+                    onerror="this.style.display='none'; this.parentElement.querySelector('.video-placeholder')?.classList.remove('hidden');">
+                  </video>
+                  <div class="video-placeholder hidden w-full h-full absolute inset-0 flex items-center justify-center bg-gray-100">
+                    <div class="loader-ring" style="width:30px;height:30px;border-width:2px;"></div>
+                  </div>`
+                : `<div class="w-full h-full flex items-center justify-center bg-gray-100">
+                    <div class="loader-ring" style="width:30px;height:30px;border-width:2px;"></div>
+                   </div>`;
+            card.innerHTML = `
+                <div class="aspect-video bg-gray-100 relative">
+                    ${videoHtml}
+                    <button class="delete-btn absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow-md transition-all z-10" title="Удалить">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+                <div class="p-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-500">${date}</span>
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${statusText}</span>
+                    </div>
+                    ${isValidVideoUrl ? `<a href="${item.video_url}" download class="mt-3 w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg text-sm">Скачать</a>` : ''}
+                </div>`;
             const deleteBtn = card.querySelector('.delete-btn');
             if(deleteBtn) deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteHistoryItem(item.id); });
             return card;
@@ -908,7 +872,7 @@ card.innerHTML = `
             manualCheckActive = true;
             const { data, error } = await supabaseClient
                 .from('generations')
-                .select('video_url, status, error_message')
+                .select('video_url, status')
                 .eq('user_id', currentUser.id)
                 .order('created_at', { ascending: false })
                 .limit(1);
@@ -921,9 +885,9 @@ card.innerHTML = `
                     loadHistory();
                 } else if (item.status === 'failed' || item.status === 'expired') {
                     setLoadingState(false);
-                    showFormError('Генерация не удалась: ' + (item.error_message || item.status));
+                    showFormError('Генерация не удалась: ' + item.status);
                 } else {
-                    alert('Видео ещё не готово. Проверьте позже.');
+                    alert('Видео ещё не готово. Статус: ' + item.status);
                 }
             } else {
                 alert('Не удалось проверить статус.');
@@ -967,7 +931,6 @@ card.innerHTML = `
             safeAddEventListener('latestVideoNewBtn', 'click', () => resetFormAndHideResults());
             safeAddEventListener('manualCheckBtn', 'click', manualCheck);
 
-            // Login
             const loginForm = document.getElementById('loginForm');
             if (loginForm) {
                 loginForm.addEventListener('submit', async (e) => {
@@ -1002,7 +965,6 @@ card.innerHTML = `
                 });
             }
 
-            // Admin form
             const adminForm = document.getElementById('adminForm');
             if (adminForm) {
                 adminForm.addEventListener('submit', async (e) => {
@@ -1033,7 +995,6 @@ card.innerHTML = `
                 });
             }
 
-            // Generate form
             const generateForm = document.getElementById('generateForm');
             if (generateForm) {
                 generateForm.addEventListener('submit', async (e) => {
@@ -1076,7 +1037,6 @@ card.innerHTML = `
             initDropZone('dropZoneStart', 'fileStart', 'previewStart', 'placeholderStart', 'image_start');
             initDropZone('dropZoneEnd', 'fileEnd', 'previewEnd', 'placeholderEnd', 'image_end');
 
-            // Session restore
             const latestVideoUrl = sessionStorage.getItem('latestVideoUrl');
             if (latestVideoUrl) {
                 showVideoResult(latestVideoUrl);
@@ -1109,21 +1069,6 @@ card.innerHTML = `
                 }
             });
         });
-        // Глобальный перехват ошибок видео в истории
-document.addEventListener('mouseover', (e) => {
-    const video = e.target.closest('video');
-    if (video && (!video.src || !video.src.startsWith('http'))) {
-        e.stopPropagation();
-        video.style.display = 'none';
-        const parent = video.parentElement;
-        if (parent && !parent.querySelector('.video-placeholder')) {
-            const placeholder = document.createElement('div');
-            placeholder.className = 'w-full h-full flex items-center justify-center bg-gray-100 video-placeholder';
-            placeholder.innerHTML = '<div class="loader-ring" style="width:30px;height:30px;border-width:2px;"></div>';
-            parent.appendChild(placeholder);
-        }
-    }
-}, true);
     </script>
 </body>
 </html>
