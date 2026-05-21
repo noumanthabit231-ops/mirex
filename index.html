@@ -341,6 +341,14 @@
                     <p class="text-gray-500">Создайте своё первое видео!</p>
                 </div>
                 <div id="historyGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                <div id="historyLoadMoreContainer" class="hidden mt-8 text-center">
+                    <button id="historyLoadMoreBtn" class="inline-flex items-center gap-2 bg-white border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                        Загрузить ещё
+                    </button>
+                </div>
             </section>
         </main>
     </div>
@@ -352,14 +360,19 @@
         const SUPABASE_URL = 'https://gqxxueddcodsxujsslje.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxeHh1ZWRkY29kc3h1anNzbGplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzI1NjYsImV4cCI6MjA4NjMwODU2Nn0.39LK0iPD5iubhLcM--QnydkTWe9lOYtITWGRZnCIYZQ';
         const WEBHOOK_URL = 'https://mirex.site/webhook/v2';
+        const HISTORY_PAGE_SIZE = 6;
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let currentDownloadBlobUrl = null;
-        let displayedHistoryItems = new Set();
         let currentUser = null;
         let logoClicks = 0;
         let clickTimeout;
         const files = { image_start: null, image_end: null };
+
+        // History pagination state
+        let historyOffset = 0;
+        let historyHasMore = false;
+        let historyLoading = false;
 
         let generationSubscription = null;
         function subscribeToGenerations() {
@@ -369,13 +382,13 @@
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'generations' }, (payload) => {
                     if (currentUser && payload.new.user_id === currentUser.id) {
                         if (payload.new.video_url) {
-                            loadHistory();
+                            resetAndLoadHistory();
                             const loadingState = document.getElementById('loadingState');
                             if (loadingState && !loadingState.classList.contains('hidden')) {
                                 setLoadingState(false);
                                 showVideoResult(payload.new.video_url);
                             }
-                        } else loadHistory();
+                        } else resetAndLoadHistory();
                     }
                 })
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'generations' }, (payload) => {
@@ -383,20 +396,20 @@
                         const oldStatus = payload.old.status;
                         const newStatus = payload.new.status;
                         if ((newStatus === 'success' || payload.new.video_url) && (!oldStatus || oldStatus !== 'success')) {
-                            loadHistory();
+                            resetAndLoadHistory();
                             const loadingState = document.getElementById('loadingState');
                             if (loadingState && !loadingState.classList.contains('hidden')) {
                                 setLoadingState(false);
                                 showVideoResult(payload.new.video_url);
                             }
                         } else if (newStatus === 'failed' || newStatus === 'expired') {
-                            loadHistory();
+                            resetAndLoadHistory();
                             const loadingState = document.getElementById('loadingState');
                             if (loadingState && !loadingState.classList.contains('hidden')) {
                                 setLoadingState(false);
                                 showFormError('Генерация не удалась: статус ' + newStatus);
                             }
-                        } else loadHistory();
+                        } else resetAndLoadHistory();
                     }
                 })
                 .subscribe();
@@ -515,7 +528,7 @@
             if(authSection) authSection.classList.add('hidden');
             if(appSection) appSection.classList.remove('hidden');
             if(userEmailSpan) userEmailSpan.textContent = (currentUser && currentUser.email) ? currentUser.email : '';
-            loadHistory();
+            resetAndLoadHistory();
             subscribeToGenerations();
         }
         function setButtonLoading(btn, loading, text) {
@@ -723,7 +736,93 @@
             sessionStorage.removeItem('latestVideoUrl');
         }
 
-        function createCard(item) {
+        // =====================================================
+        // HISTORY WITH PAGINATION
+        // =====================================================
+        function resetAndLoadHistory() {
+            const grid = document.getElementById('historyGrid');
+            const empty = document.getElementById('historyEmpty');
+            const loading = document.getElementById('historyLoading');
+            const loadMoreContainer = document.getElementById('historyLoadMoreContainer');
+            if (grid) grid.innerHTML = '';
+            historyOffset = 0;
+            historyHasMore = false;
+            if (loadMoreContainer) loadMoreContainer.classList.add('hidden');
+            if (loading) loading.classList.remove('hidden');
+            if (empty) empty.classList.add('hidden');
+            loadHistoryPage(0).then(() => {
+                if (loading) loading.classList.add('hidden');
+            });
+        }
+
+        async function loadHistoryPage(offset) {
+            if (!currentUser || !currentUser.id) return;
+            if (historyLoading) return;
+            historyLoading = true;
+            const loadMoreBtn = document.getElementById('historyLoadMoreBtn');
+            if (loadMoreBtn) loadMoreBtn.disabled = true;
+
+            try {
+                const { data, error, count } = await supabaseClient
+                    .from('generations')
+                    .select('*', { count: 'exact' })
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: false })
+                    .range(offset, offset + HISTORY_PAGE_SIZE - 1);
+
+                const grid = document.getElementById('historyGrid');
+                const empty = document.getElementById('historyEmpty');
+                const loadMoreContainer = document.getElementById('historyLoadMoreContainer');
+                const clearBtn = document.getElementById('clearHistoryBtn');
+
+                if (error) throw error;
+
+                if (offset === 0 && (!data || data.length === 0)) {
+                    if (empty) empty.classList.remove('hidden');
+                    if (clearBtn) clearBtn.classList.add('hidden');
+                    if (loadMoreContainer) loadMoreContainer.classList.add('hidden');
+                    historyHasMore = false;
+                    return;
+                }
+
+                if (data && data.length > 0) {
+                    data.forEach(item => {
+                        if (grid) grid.appendChild(createHistoryCard(item));
+                    });
+                    if (offset === 0 && empty) empty.classList.add('hidden');
+                    if (clearBtn) clearBtn.classList.remove('hidden');
+                }
+
+                const totalCount = count !== null ? count : (offset + (data ? data.length : 0));
+                historyHasMore = (offset + HISTORY_PAGE_SIZE) < totalCount;
+                historyOffset = offset + (data ? data.length : 0);
+
+                if (loadMoreContainer) {
+                    if (historyHasMore) loadMoreContainer.classList.remove('hidden');
+                    else loadMoreContainer.classList.add('hidden');
+                }
+            } catch (err) {
+                console.error('History load error:', err);
+                if (offset === 0) {
+                    const empty = document.getElementById('historyEmpty');
+                    if (empty) empty.classList.remove('hidden');
+                }
+            } finally {
+                historyLoading = false;
+                const loadMoreBtn = document.getElementById('historyLoadMoreBtn');
+                if (loadMoreBtn) loadMoreBtn.disabled = false;
+            }
+        }
+
+        function loadMoreHistory() {
+            if (historyHasMore && !historyLoading) {
+                const loadMoreContainer = document.getElementById('historyLoadMoreContainer');
+                if (loadMoreContainer) loadMoreContainer.classList.add('hidden');
+                loadHistoryPage(historyOffset);
+            }
+        }
+
+        function createHistoryCard(item) {
             const card = document.createElement('div');
             card.className = 'history-card bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm relative group';
             const date = new Date(item.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -766,7 +865,7 @@
             if (!confirm('Удалить это видео?')) return;
             try {
                 await supabaseClient.from('generations').delete().eq('id', id);
-                loadHistory();
+                resetAndLoadHistory();
             } catch (error) { alert('Ошибка при удалении: ' + error.message); }
         }
 
@@ -774,41 +873,8 @@
             if (!confirm('Удалить ВСЮ историю?')) return;
             try {
                 await supabaseClient.from('generations').delete().eq('user_id', currentUser.id);
-                loadHistory();
+                resetAndLoadHistory();
             } catch (error) { alert('Ошибка при очистке: ' + error.message); }
-        }
-
-        async function loadHistory() {
-            if (!currentUser || !currentUser.id) return;
-            const loading = document.getElementById('historyLoading');
-            const empty = document.getElementById('historyEmpty');
-            const grid = document.getElementById('historyGrid');
-            const clearBtn = document.getElementById('clearHistoryBtn');
-            if(loading) loading.classList.remove('hidden');
-            if(empty) empty.classList.add('hidden');
-            if(grid) grid.innerHTML = '';
-            displayedHistoryItems.clear();
-            try {
-                const { data, error } = await supabaseClient.from('generations').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
-                if(loading) loading.classList.add('hidden');
-                if (error || !data?.length) {
-                    if(empty) empty.classList.remove('hidden');
-                    if(clearBtn) clearBtn.classList.add('hidden');
-                    return;
-                }
-                if(clearBtn) clearBtn.classList.remove('hidden');
-                data.forEach(item => {
-                    if (!displayedHistoryItems.has(item.id)) {
-                        if(grid) grid.appendChild(createCard(item));
-                        displayedHistoryItems.add(item.id);
-                    }
-                });
-            } catch (e) {
-                console.error(e);
-                if(loading) loading.classList.add('hidden');
-                if(empty) empty.classList.remove('hidden');
-                if(clearBtn) clearBtn.classList.add('hidden');
-            }
         }
 
         // =====================================================
@@ -842,9 +908,10 @@
                 await supabaseClient.auth.signOut();
                 showAuth();
             });
-            safeAddEventListener('refreshHistory', 'click', loadHistory);
+            safeAddEventListener('refreshHistory', 'click', resetAndLoadHistory);
             safeAddEventListener('clearHistoryBtn', 'click', clearAllHistory);
             safeAddEventListener('latestVideoNewBtn', 'click', () => resetFormAndHideResults());
+            safeAddEventListener('historyLoadMoreBtn', 'click', loadMoreHistory);
 
             const loginForm = document.getElementById('loginForm');
             if (loginForm) {
@@ -939,7 +1006,7 @@
                         await waitForVideo(currentUser.id, (url) => {
                             setLoadingState(false);
                             showVideoResult(url);
-                            loadHistory();
+                            resetAndLoadHistory();
                         });
                     } catch (err) {
                         setLoadingState(false);
