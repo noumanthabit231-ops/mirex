@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="referrer" content="no-referrer">
+    <meta name="referrer" content="origin">
     <title>Mirex ИИ облёты — Генерация видео</title>
     <script>
         (function(){
@@ -281,7 +281,7 @@
             <div id="resultSection" class="hidden mb-12 fade-in">
                 <div id="latestVideoContainer" class="hidden bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-gray-100 mb-8">
                     <h3 class="text-2xl font-bold text-gray-900 mb-4">Ваше новое видео</h3>
-                    <video id="latestVideoPlayer" class="w-full rounded-xl mb-4" controls></video>
+                    <video id="latestVideoPlayer" class="w-full rounded-xl mb-4" controls preload="metadata" crossorigin="anonymous"></video>
                     <div class="flex flex-col sm:flex-row gap-4">
                         <a id="latestVideoDownloadBtn" href="#" download="mirex_video.mp4" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 px-4 rounded-xl text-center transition-all">
                             Скачать видео
@@ -831,10 +831,10 @@
             const statusClass = hasVideo ? 'bg-green-100 text-green-700' : (item.status === 'failed' || item.status === 'expired' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700');
             const isValidVideoUrl = hasVideo && item.video_url && typeof item.video_url === 'string' && item.video_url.startsWith('http');
             const videoHtml = isValidVideoUrl 
-                ? `<video src="${item.video_url}" class="history-video w-full h-full object-cover" muted loop 
+                ? `<video src="${item.video_url}" class="history-video w-full h-full object-cover" muted loop preload="metadata" crossorigin="anonymous"
                     onmouseover="if(this.src && this.src.startsWith('http')) this.play();" 
                     onmouseout="this.pause();this.currentTime=0;"
-                    onerror="this.style.display='none'; this.parentElement.querySelector('.video-placeholder')?.classList.remove('hidden');">
+                    onerror="console.error('History video error:', this.src); this.style.display='none'; this.parentElement.querySelector('.video-placeholder')?.classList.remove('hidden');">
                   </video>
                   <div class="video-placeholder hidden w-full h-full absolute inset-0 flex items-center justify-center bg-gray-100">
                     <div class="loader-ring" style="width:30px;height:30px;border-width:2px;"></div>
